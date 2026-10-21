@@ -40,6 +40,8 @@ import helium314.keyboard.latin.common.LocaleUtils.localizedDisplayName
 import helium314.keyboard.settings.DropDownField
 import helium314.keyboard.settings.SearchScreen
 import helium314.keyboard.settings.dialogs.ThreeButtonAlertDialog
+import helium314.keyboard.settings.dialogs.swiftKeyVocabularyIntent
+import helium314.keyboard.settings.dialogs.swiftKeyVocabularyPicker
 import java.util.Locale
 
 @Composable
@@ -47,10 +49,15 @@ fun PersonalDictionaryScreen(
     onClickBack: () -> Unit,
     locale: Locale?
 ) {
-    val words = getAll(locale, LocalContext.current)
+    val ctx = LocalContext.current
+    val words = getAll(locale, ctx)
     var selectedWord: Word? by remember { mutableStateOf(null) }
+    val swiftKeyPicker = swiftKeyVocabularyPicker(locale)
     SearchScreen(
         onClickBack = onClickBack,
+        menu = listOf(
+            stringResource(R.string.import_swiftkey_vocabulary) to { swiftKeyPicker.launch(swiftKeyVocabularyIntent(ctx)) }
+        ),
         title = {
             Column {
                 Text(stringResource(R.string.edit_personal_dictionary))
