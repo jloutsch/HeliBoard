@@ -224,10 +224,20 @@ final class SuggestionStripLayoutHelper {
     private int getPositionInSuggestionStrip(final int indexInSuggestedWords,
             final SuggestedWords suggestedWords) {
         final SettingsValues settingsValues = Settings.getValues();
+        if (suggestedWords.mInputStyle == SuggestedWords.INPUT_STYLE_TAIL_BATCH && settingsValues.mGestureSwipedWordInCenter)
+            return getPositionWithSwipedWordInCenter(indexInSuggestedWords, mCenterPositionInStrip);
         final boolean shouldOmitTypedWord = shouldOmitTypedWord(suggestedWords.mInputStyle,
                 settingsValues.mGestureFloatingPreviewTextEnabled, true);
         return getPositionInSuggestionStrip(indexInSuggestedWords, suggestedWords.mWillAutoCorrect,
                 shouldOmitTypedWord, mCenterPositionInStrip, mTypedWordPositionWhenAutocorrect);
+    }
+
+    // The word entered by the gesture (index 0) goes in the center, so it matches the text field.
+    // Alternatives follow left of the center first, then right: center-1, center+1, center-2, and so on.
+    static int getPositionWithSwipedWordInCenter(final int indexInSuggestedWords, final int centerPositionInStrip) {
+        if (indexInSuggestedWords == 0) return centerPositionInStrip;
+        final int offsetFromCenter = (indexInSuggestedWords % 2) == 1 ? -((indexInSuggestedWords + 1) / 2) : (indexInSuggestedWords / 2);
+        return centerPositionInStrip + offsetFromCenter;
     }
 
     static boolean shouldOmitTypedWord(final int inputStyle,
