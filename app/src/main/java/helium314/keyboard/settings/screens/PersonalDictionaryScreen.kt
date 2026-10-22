@@ -55,9 +55,6 @@ fun PersonalDictionaryScreen(
     val swiftKeyPicker = swiftKeyVocabularyPicker(locale)
     SearchScreen(
         onClickBack = onClickBack,
-        menu = listOf(
-            stringResource(R.string.import_swiftkey_vocabulary) to { swiftKeyPicker.launch(swiftKeyVocabularyIntent(ctx)) }
-        ),
         title = {
             Column {
                 Text(stringResource(R.string.edit_personal_dictionary))
@@ -94,13 +91,21 @@ fun PersonalDictionaryScreen(
     if (selectedWord != null) {
         EditWordDialog(selectedWord!!, locale) { selectedWord = null }
     }
-    ExtendedFloatingActionButton(
-        onClick = { selectedWord = Word("", null, null) },
-        text = { Text(stringResource(R.string.user_dict_add_word_button)) },
-        icon = { Icon(painter = painterResource(R.drawable.ic_edit), stringResource(R.string.user_dict_add_word_button)) },
+    Column(
+        horizontalAlignment = Alignment.End,
+        verticalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier.wrapContentSize(Alignment.BottomEnd).padding(all = 12.dp)
             .then(Modifier.safeDrawingPadding())
-    )
+    ) {
+        ExtendedFloatingActionButton(onClick = { swiftKeyPicker.launch(swiftKeyVocabularyIntent(ctx)) }) {
+            Text(stringResource(R.string.import_swiftkey_vocabulary))
+        }
+        ExtendedFloatingActionButton(
+            onClick = { selectedWord = Word("", null, null) },
+            text = { Text(stringResource(R.string.user_dict_add_word_button)) },
+            icon = { Icon(painter = painterResource(R.drawable.ic_edit), stringResource(R.string.user_dict_add_word_button)) },
+        )
+    }
 }
 
 @Composable

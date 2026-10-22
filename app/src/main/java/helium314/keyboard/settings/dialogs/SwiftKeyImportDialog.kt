@@ -7,6 +7,10 @@ import android.content.Intent
 import android.provider.UserDictionary
 import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.activity.result.ActivityResult
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -14,8 +18,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.DialogProperties
 import com.android.inputmethod.latin.BinaryDictionary
 import helium314.keyboard.latin.R
 import helium314.keyboard.latin.dictionary.Dictionary
@@ -27,7 +35,10 @@ import helium314.keyboard.latin.utils.SwiftKeyVocabulary
 import helium314.keyboard.settings.filePicker
 import helium314.keyboard.settings.screens.getLocaleDisplayNameForUserDictSettings
 import helium314.keyboard.settings.screens.getSortedDictionaryLocales
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import java.io.File
 import java.util.Locale
@@ -42,25 +53,44 @@ fun swiftKeyVocabularyPicker(locale: Locale?): ManagedActivityResultLauncher<Int
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope { Dispatchers.IO }
     var state: ImportState? by remember { mutableStateOf(null) }
+    var readJob: Job? by remember { mutableStateOf(null) }
     val picker = filePicker { uri ->
         state = ImportState.Reading
-        scope.launch {
-            state = try {
+        readJob = scope.launch {
+            val result = try {
                 val text = ctx.contentResolver.openInputStream(uri)?.use { it.reader().readText() } ?: ""
+                ensureActive()
                 if (!SwiftKeyVocabulary.isSwiftKeyVocabulary(text)) ImportState.WrongFile
                 else {
                     val known = getKnownWordsLowercase(ctx, locale)
+                    ensureActive()
                     ImportState.Ready(SwiftKeyVocabulary.filterWords(text) { it in known })
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Log.w(TAG, "could not read SwiftKey vocabulary", e)
                 ImportState.WrongFile
             }
+            ensureActive() // cancelled while reading: don't show a result
+            state = result
         }
     }
     when (val s = state) {
         null -> { }
-        ImportState.Reading -> InfoDialog(stringResource(R.string.swiftkey_import_reading)) { state = null }
+        // reading is not dismissed by tapping outside, cancel actually stops it
+        ImportState.Reading -> ThreeButtonAlertDialog(
+            onDismissRequest = { readJob?.cancel(); state = null },
+            onConfirmed = { },
+            confirmButtonText = null,
+            content = {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    CircularProgressIndicator(Modifier.size(24.dp))
+                    Text(stringResource(R.string.swiftkey_import_reading))
+                }
+            },
+            properties = DialogProperties(dismissOnClickOutside = false)
+        )
         ImportState.WrongFile -> InfoDialog(stringResource(R.string.swiftkey_import_wrong_file)) { state = null }
         is ImportState.Done -> InfoDialog(stringResource(R.string.swiftkey_import_done, s.added)) { state = null }
         is ImportState.Ready -> if (s.result.words.isEmpty()) {
