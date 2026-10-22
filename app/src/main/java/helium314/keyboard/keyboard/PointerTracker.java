@@ -1346,8 +1346,15 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
         mIsDetectingGesture = false;
         final int nextRepeatCount = repeatCount + 1;
         startKeyRepeatTimer(nextRepeatCount);
+        int inputCode = code;
+        if (code == KeyCode.DELETE && Settings.getValues().mDeleteWordOnLongPress) {
+            // delete a word on the first repeat, then one per long press delay
+            final int repeatsPerWord = Math.max(1, Settings.getValues().mKeyLongpressTimeout / sParams.mKeyRepeatInterval);
+            if ((repeatCount - 1) % repeatsPerWord != 0) return;
+            inputCode = KeyCode.DELETE_WORD;
+        }
         callListenerOnPressAndCheckKeyboardLayoutChange(key, repeatCount);
-        callListenerOnCodeInput(key, code, mKeyX, mKeyY, SystemClock.uptimeMillis(), true);
+        callListenerOnCodeInput(key, inputCode, mKeyX, mKeyY, SystemClock.uptimeMillis(), true);
     }
 
     private void startKeyRepeatTimer(final int repeatCount) {
