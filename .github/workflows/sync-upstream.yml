@@ -1,0 +1,21 @@
+name: Sync with upstream
+
+# keeps this fork's main up to date with Helium314/HeliBoard
+on:
+  schedule:
+    - cron: '23 5 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Merge upstream main into main
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # fast-forwards, or creates a merge commit if main has its own commits (like this workflow)
+        # fails if upstream changed workflow files (GITHUB_TOKEN can't write those), then use "Sync fork" on GitHub once
+        run: gh api --method POST "repos/${{ github.repository }}/merge-upstream" -f branch=main
