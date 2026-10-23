@@ -5,6 +5,7 @@ import android.content.ClipDescription
 import android.content.ContentValues
 import android.content.Context
 import android.content.SharedPreferences
+import android.database.sqlite.SQLiteDatabase
 import android.net.Uri
 import android.os.SystemClock
 import android.webkit.MimeTypeMap
@@ -121,7 +122,7 @@ class ClipboardDao private constructor(private val db: Database) {
     }
 
     /** only public for restoring backups */
-    fun insertNewEntry(timestamp: Long, pinned: Boolean, text: String?, filename: String?, mimeTypes: List<String>?, context: Context?, shortcut: String? = null) {
+    fun insertNewEntry(timestamp: Long, pinned: Boolean, text: String?, filename: String?, mimeTypes: List<String>?, context: Context?, shortcut: String? = null) = synchronized(this) {
         val cv = ContentValues(6)
         cv.put(COLUMN_TIMESTAMP, timestamp)
         cv.put(COLUMN_PINNED, pinned)
@@ -160,12 +161,13 @@ class ClipboardDao private constructor(private val db: Database) {
 
     fun count() = cache.size
 
-    fun sort() = cache.sort()
+    fun sort() = synchronized(this) { cache.sort() }
 
     fun togglePinned(id: Long) = synchronized(this) {
         val entry = cache.first { it.id == id }
         entry.isPinned = !entry.isPinned
         entry.timeStamp = System.currentTimeMillis()
+        if (!entry.isPinned) entry.shortcut = null // snippets are pinned clips, an unpinned clip would block its shortcut invisibly
         if (listener != null) {
             val oldPos = cache.indexOf(entry)
             cache.sort()
@@ -174,19 +176,24 @@ class ClipboardDao private constructor(private val db: Database) {
         } else {
             cache.sort()
         }
-        val cv = ContentValues(2)
+        val cv = ContentValues(3)
         cv.put(COLUMN_PINNED, entry.isPinned)
         cv.put(COLUMN_TIMESTAMP, entry.timeStamp)
+        cv.put(COLUMN_SHORTCUT, entry.shortcut)
         db.writableDatabase.update(TABLE, cv, "$COLUMN_ID = ${entry.id}", null)
     }
 
     /** Returns why [shortcut] can't be used for the clip with [id], or null if it can. Blank removes the shortcut, so it's valid. */
-    fun getShortcutError(id: Long, shortcut: String): ShortcutError? {
-        val normalized = normalizeShortcut(shortcut) ?: return null
-        if (!normalized.matches(SHORTCUT_REGEX)) return ShortcutError.INVALID_CHARACTERS
-        if (cache.any { it.shortcut == normalized && it.id != id }) return ShortcutError.IN_USE
-        return null
+    fun getShortcutError(id: Long, shortcut: String): ShortcutError? = synchronized(this) {
+        val normalized = normalizeShortcut(shortcut) ?: return@synchronized null
+        if (!normalized.matches(SHORTCUT_REGEX)) return@synchronized ShortcutError.INVALID_CHARACTERS
+        if (cache.any { it.shortcut == normalized && it.id != id }) return@synchronized ShortcutError.IN_USE
+        null
     }
+
+    /** [shortcut] in stored form, or null if it's missing or not allowed, e.g. from a backup */
+    fun getValidShortcut(shortcut: String?): String? =
+        if (shortcut == null || getShortcutError(-1, shortcut) != null) null else normalizeShortcut(shortcut)
 
     /** Saves [text] and [shortcut] (blank removes it), as new pinned clip if [id] is null. Returns false if text is blank or [getShortcutError] reports an error. */
     fun saveSnippet(id: Long?, text: String, shortcut: String): Boolean = synchronized(this) {
@@ -210,10 +217,10 @@ class ClipboardDao private constructor(private val db: Database) {
         delete(listOf(get(id)))
     }
 
-    /** Pinned text clips whose shortcut matches [word], ignoring case */
+    /** Pinned text clips whose shortcut matches [word], ignoring case. Called from the suggestion thread, hence the lock. */
     fun getSnippetsForShortcut(word: String): List<ClipboardHistoryEntry> {
         val normalized = normalizeShortcut(word) ?: return emptyList()
-        return cache.filter { it.isPinned && it.shortcut == normalized && !it.text.isNullOrBlank() }
+        return synchronized(this) { cache.filter { it.isPinned && it.shortcut == normalized && !it.text.isNullOrBlank() } }
     }
 
     // RecyclerView initiates this, so we don't call listener (or we'll get an IndexOutOfRangeException from RecyclerView)
@@ -254,8 +261,8 @@ class ClipboardDao private constructor(private val db: Database) {
         listener?.onClipsRemoved(indicesToRemove[0], indicesToRemove.size)
     }
 
-    fun clear() {
-        if (count() == 0) return
+    fun clear() = synchronized(this) {
+        if (count() == 0) return@synchronized
         cache.clear()
         listener?.onClipsRemoved(0, count())
         db.writableDatabase.delete(TABLE, null, null)
@@ -310,7 +317,13 @@ class ClipboardDao private constructor(private val db: Database) {
 
         const val ADD_FILE_COLUMN = "ALTER TABLE $TABLE ADD COLUMN $COLUMN_FILE TEXT"
         const val ADD_MIME_TYPE_COLUMN = "ALTER TABLE $TABLE ADD COLUMN $COLUMN_MIME_TYPE TEXT"
-        const val ADD_SHORTCUT_COLUMN = "ALTER TABLE $TABLE ADD COLUMN $COLUMN_SHORTCUT TEXT"
+
+        fun addShortcutColumnIfMissing(db: SQLiteDatabase) {
+            val hasColumn = db.rawQuery("PRAGMA table_info($TABLE)", null).use { c ->
+                generateSequence { if (c.moveToNext()) c.getString(1) else null }.any { it == COLUMN_SHORTCUT }
+            }
+            if (!hasColumn) db.execSQL("ALTER TABLE $TABLE ADD COLUMN $COLUMN_SHORTCUT TEXT")
+        }
 
         // letters and digits only, so a shortcut is always a single word
         private val SHORTCUT_REGEX = Regex("[\\p{L}\\p{N}]+")

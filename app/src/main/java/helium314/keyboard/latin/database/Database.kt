@@ -24,14 +24,22 @@ class Database private constructor(context: Context, name: String = NAME) : SQLi
             db.execSQL(ClipboardDao.ADD_FILE_COLUMN)
             db.execSQL(ClipboardDao.ADD_MIME_TYPE_COLUMN)
         }
-        if (oldVersion <= 3) {
-            db.execSQL(ClipboardDao.ADD_SHORTCUT_COLUMN)
-        }
+    }
+
+    // the shortcut column (clipboard snippets) is added here instead of with a version bump,
+    // so this fork keeps upstream's version numbers and upstream's next migration still runs
+    override fun onOpen(db: SQLiteDatabase) {
+        if (!db.isReadOnly) ClipboardDao.addShortcutColumnIfMissing(db)
+    }
+
+    // version 4 was this fork's shortcut column, which onOpen now takes care of
+    override fun onDowngrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+        if (oldVersion != 4 || newVersion != 3) super.onDowngrade(db, oldVersion, newVersion)
     }
 
     companion object {
         private val TAG = Database::class.java.simpleName
-        private const val VERSION = 4
+        private const val VERSION = 3
         const val NAME = "heliboard.db"
         private var instance: Database? = null
         fun getInstance(context: Context): Database {
@@ -57,14 +65,15 @@ class Database private constructor(context: Context, name: String = NAME) : SQLi
                             .use {
                                 clipDao.clear()
                                 while (it.moveToNext()) {
+                                    val pinned = it.getInt(1) != 0
                                     clipDao.insertNewEntry(
                                         it.getLong(0),
-                                        it.getInt(1) != 0,
+                                        pinned,
                                         it.getStringOrNull(2),
                                         it.getStringOrNull(3),
                                         it.getStringOrNull(4)?.split("§"),
                                         null,
-                                        it.getStringOrNull(5)
+                                        if (pinned) clipDao.getValidShortcut(it.getStringOrNull(5)) else null
                                     )
                                 }
                             }

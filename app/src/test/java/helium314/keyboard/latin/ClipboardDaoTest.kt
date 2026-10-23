@@ -57,10 +57,14 @@ class ClipboardDaoTest {
         assertEquals(emptyList(), dao.getSnippetsForShortcut("kr"))
     }
 
-    @Test fun `only pinned clips are snippets`() {
+    @Test fun `unpinning removes the shortcut so it can be used again`() {
         assert(dao.saveSnippet(null, "Best regards", "sig"))
-        dao.togglePinned(dao.getAll().single().id)
+        val id = dao.getAll().single().id
+        dao.togglePinned(id)
         assertEquals(emptyList(), dao.getSnippetsForShortcut("sig"))
+        assertNull(dao.get(id).shortcut)
+        assertNull(readFromDb(id, "SHORTCUT"))
+        assert(dao.saveSnippet(null, "Kind regards", "sig"))
     }
 
     @Test fun `deleted snippet is not suggested`() {
@@ -86,17 +90,29 @@ class ClipboardDaoTest {
         assertNull(clip.shortcut)
     }
 
-    @Test fun `restoring a backup keeps shortcuts`() {
+    // version 4 is what this fork used for the shortcut column before it moved to Database.onOpen
+    @Test fun `restoring a backup keeps valid shortcuts of pinned clips`() {
         val file = context.getDatabasePath("backup_v4.db")
         file.parentFile!!.mkdirs()
         SQLiteDatabase.openOrCreateDatabase(file, null).use { db ->
             db.execSQL("CREATE TABLE CLIPBOARD (ID INTEGER PRIMARY KEY, TIMESTAMP INTEGER NOT NULL, PINNED TINYINT NOT NULL, TEXT TEXT, FILE TEXT, MIME_TYPE TEXT, SHORTCUT TEXT)")
             db.execSQL(GestureDataDao.CREATE_TABLE)
-            db.execSQL("INSERT INTO CLIPBOARD (TIMESTAMP, PINNED, TEXT, SHORTCUT) VALUES (1, 1, 'Best regards', 'sig')")
+            db.execSQL("INSERT INTO CLIPBOARD (TIMESTAMP, PINNED, TEXT, SHORTCUT) VALUES (1, 1, 'Best regards', 'SIG')")
+            db.execSQL("INSERT INTO CLIPBOARD (TIMESTAMP, PINNED, TEXT, SHORTCUT) VALUES (2, 1, 'Kind regards', 'sig')") // duplicate
+            db.execSQL("INSERT INTO CLIPBOARD (TIMESTAMP, PINNED, TEXT, SHORTCUT) VALUES (3, 1, 'Cheers', 'two words')")
+            db.execSQL("INSERT INTO CLIPBOARD (TIMESTAMP, PINNED, TEXT, SHORTCUT) VALUES (4, 0, 'Bye', 'bye')") // not pinned
             db.version = 4
         }
         Database.copyFromDb(file, context)
-        assertEquals(listOf("Best regards"), dao.getSnippetsForShortcut("sig").map { it.text })
+        assertEquals(1, dao.getAll().count { it.shortcut == "sig" })
+        assertEquals(listOf("sig"), dao.getAll().mapNotNull { it.shortcut })
+        assertEquals(4, dao.count())
+    }
+
+    @Test fun `database keeps upstream's version and has the shortcut column`() {
+        assertEquals(3, Database.getInstance(context).readableDatabase.version)
+        assert(dao.saveSnippet(null, "Best regards", "sig"))
+        assertEquals("sig", readFromDb(dao.getAll().single().id, "SHORTCUT"))
     }
 
     private fun readFromDb(id: Long, column: String): String? =
