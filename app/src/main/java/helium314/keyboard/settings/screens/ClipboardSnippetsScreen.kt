@@ -7,7 +7,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -40,7 +43,7 @@ fun ClipboardSnippetsScreen(
     onClickBack: () -> Unit,
 ) {
     val dao = ClipboardDao.getInstance(LocalContext.current)
-    // shortcuts are changed in place in the dao cache, so we need to trigger recomposition after saving
+    // clips are changed in place in the dao cache, so we need to trigger recomposition after saving
     var savedCount by remember { mutableIntStateOf(0) }
     val clips = remember(savedCount) { dao?.getAll()?.filter { it.isPinned && !it.text.isNullOrBlank() }.orEmpty() }
     var selectedClip: ClipboardHistoryEntry? by remember { mutableStateOf(null) }
@@ -64,7 +67,7 @@ fun ClipboardSnippetsScreen(
                     if (it.shortcut != null)
                         Text(it.shortcut!!, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                Icon(painterResource(R.drawable.ic_edit), stringResource(R.string.clipboard_snippet_shortcut))
+                Icon(painterResource(R.drawable.ic_edit), stringResource(R.string.clipboard_snippet_edit))
             }
         },
         content = if (clips.isEmpty()) {
@@ -73,36 +76,58 @@ fun ClipboardSnippetsScreen(
     )
     val clip = selectedClip
     if (clip != null && dao != null) {
-        EditShortcutDialog(clip, dao, onSaved = { savedCount++ }) { selectedClip = null }
+        EditSnippetDialog(clip, dao, onChanged = { savedCount++ }) { selectedClip = null }
     }
+    ExtendedFloatingActionButton(
+        onClick = { selectedClip = ClipboardHistoryEntry(NEW_SNIPPET_ID, 0, true, "", null, null) },
+        text = { Text(stringResource(R.string.clipboard_snippet_add)) },
+        icon = { Icon(painter = painterResource(R.drawable.ic_plus), stringResource(R.string.clipboard_snippet_add)) },
+        modifier = Modifier.wrapContentSize(Alignment.BottomEnd).padding(all = 12.dp)
+            .then(Modifier.safeDrawingPadding())
+    )
 }
 
 @Composable
-private fun EditShortcutDialog(clip: ClipboardHistoryEntry, dao: ClipboardDao, onSaved: () -> Unit, onDismissRequest: () -> Unit) {
+private fun EditSnippetDialog(clip: ClipboardHistoryEntry, dao: ClipboardDao, onChanged: () -> Unit, onDismissRequest: () -> Unit) {
+    val isNew = clip.id == NEW_SNIPPET_ID
     val focusRequester = remember { FocusRequester() }
+    var text by remember { mutableStateOf(clip.text ?: "") }
     var shortcut by remember { mutableStateOf(clip.shortcut ?: "") }
     val error = dao.getShortcutError(clip.id, shortcut)
     fun save() {
-        if (dao.setShortcut(clip.id, shortcut)) onSaved()
+        if (dao.saveSnippet(if (isNew) null else clip.id, text, shortcut)) onChanged()
     }
     ThreeButtonAlertDialog(
         onDismissRequest = onDismissRequest,
         onConfirmed = { save() },
-        checkOk = { error == null },
+        checkOk = { text.isNotBlank() && error == null },
         confirmButtonText = stringResource(R.string.save),
-        title = { Text(clip.text!!, maxLines = 3, overflow = TextOverflow.Ellipsis) },
+        neutralButtonText = if (isNew) null else stringResource(R.string.delete),
+        onNeutral = {
+            dao.deleteClip(clip.id)
+            onChanged()
+            onDismissRequest()
+        },
+        title = { Text(stringResource(if (isNew) R.string.clipboard_snippet_add else R.string.clipboard_snippet_edit)) },
         content = {
             LaunchedEffect(clip) { focusRequester.requestFocus() }
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 TextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
+                    maxLines = 6,
+                    label = { Text(stringResource(R.string.clipboard_snippet_text)) },
+                )
+                TextField(
                     value = shortcut,
                     onValueChange = { shortcut = it },
-                    modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
+                    modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     label = { Text(stringResource(R.string.clipboard_snippet_shortcut)) },
                     isError = error != null,
                     keyboardActions = KeyboardActions {
-                        if (error == null) {
+                        if (text.isNotBlank() && error == null) {
                             save()
                             onDismissRequest()
                         }
@@ -117,3 +142,5 @@ private fun EditShortcutDialog(clip: ClipboardHistoryEntry, dao: ClipboardDao, o
         }
     )
 }
+
+private const val NEW_SNIPPET_ID = -1L

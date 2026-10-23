@@ -597,7 +597,7 @@ class SuggestTest {
         tapTypingSuggestions = suggestionResults(listOf(suggestion("sign", Int.MAX_VALUE), suggestion("sigh", 1500000)))
         assert(getSuggestedWords(false, "sig", CapsMode.OFF).mWillAutoCorrect) // without snippet
 
-        addSnippet("Best regards", "SIG")
+        assert(ClipboardDao.getInstance(latinIME)!!.saveSnippet(null, "Best regards", "SIG"))
         val result = getSuggestedWords(false, "Sig", CapsMode.OFF)
         assert(!result.mWillAutoCorrect)
         assertEquals("Best regards", result.getInfo(SuggestedWords.INDEX_OF_AUTO_CORRECTION).mWord)
@@ -606,17 +606,11 @@ class SuggestTest {
 
     @Test fun `unpinned clip with shortcut is not suggested`() {
         val dao = ClipboardDao.getInstance(latinIME)!!
-        addSnippet("Best regards", "sig")
+        assert(dao.saveSnippet(null, "Best regards", "sig"))
         dao.togglePinned(dao.getAll().single().id)
         tapTypingSuggestions = suggestionResults(listOf(suggestion("sign", 1500000)))
         val result = getSuggestedWords(false, "sig", CapsMode.OFF)
         assert(result.mSuggestedWordInfoList.none { it.isKindOf(SuggestedWordInfo.KIND_CLIPBOARD_SNIPPET) })
-    }
-
-    private fun addSnippet(text: String, shortcut: String) {
-        val dao = ClipboardDao.getInstance(latinIME)!!
-        dao.insertNewEntry(System.currentTimeMillis(), true, text, null, null, null)
-        assert(dao.setShortcut(dao.getAll().first { it.text == text }.id, shortcut))
     }
 
     private fun getSuggestedWords(gesture: Boolean, typedWord: String, capsMode: CapsMode): SuggestedWords {

@@ -188,15 +188,26 @@ class ClipboardDao private constructor(private val db: Database) {
         return null
     }
 
-    /** Sets the shortcut, or removes it if [shortcut] is blank. Returns false if [getShortcutError] reports an error. */
-    fun setShortcut(id: Long, shortcut: String): Boolean = synchronized(this) {
-        if (getShortcutError(id, shortcut) != null) return@synchronized false
+    /** Saves [text] and [shortcut] (blank removes it), as new pinned clip if [id] is null. Returns false if text is blank or [getShortcutError] reports an error. */
+    fun saveSnippet(id: Long?, text: String, shortcut: String): Boolean = synchronized(this) {
+        if (text.isBlank() || getShortcutError(id ?: -1, shortcut) != null) return@synchronized false
         val normalized = normalizeShortcut(shortcut)
-        cache.first { it.id == id }.shortcut = normalized
-        val cv = ContentValues(1)
+        if (id == null) {
+            insertNewEntry(System.currentTimeMillis(), true, text, null, null, null, normalized)
+            return@synchronized true
+        }
+        val entry = get(id)
+        entry.text = text
+        entry.shortcut = normalized
+        val cv = ContentValues(2)
+        cv.put(COLUMN_TEXT, text)
         cv.put(COLUMN_SHORTCUT, normalized)
         db.writableDatabase.update(TABLE, cv, "$COLUMN_ID = $id", null)
         true
+    }
+
+    fun deleteClip(id: Long) {
+        delete(listOf(get(id)))
     }
 
     /** Pinned text clips whose shortcut matches [word], ignoring case */
@@ -287,7 +298,7 @@ class ClipboardDao private constructor(private val db: Database) {
         private const val COLUMN_TEXT = "TEXT" // we could enforce unique text, but that's only necessary if we can drop the cache (later)
         private const val COLUMN_FILE = "FILE" // path relative to files dir
         private const val COLUMN_MIME_TYPE = "MIME_TYPE" // for files, actually a list of mime types according to clipboard description
-        private const val COLUMN_SHORTCUT = "SHORTCUT" // lowercase, see setShortcut
+        private const val COLUMN_SHORTCUT = "SHORTCUT" // lowercase, see normalizeShortcut
         const val CREATE_TABLE = """
             CREATE TABLE $TABLE (
                 $COLUMN_ID INTEGER PRIMARY KEY,

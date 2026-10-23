@@ -25,45 +25,49 @@ class ClipboardDaoTest {
         dao.clear()
     }
 
-    @Test fun `shortcut is stored lowercase and matched ignoring case`() {
-        val id = addPinnedClip("Best regards")
-        assert(dao.setShortcut(id, " Sig "))
-        assertEquals("sig", dao.get(id).shortcut)
+    @Test fun `new snippet is a pinned clip with lowercase shortcut matched ignoring case`() {
+        assert(dao.saveSnippet(null, "Best regards", " Sig "))
+        val clip = dao.getAll().single()
+        assert(clip.isPinned)
+        assertEquals("sig", clip.shortcut)
+        assertEquals("sig", readFromDb(clip.id, "SHORTCUT"))
         assertEquals(listOf("Best regards"), dao.getSnippetsForShortcut("SIG").map { it.text })
-        assertEquals("sig", readShortcutFromDb(id))
     }
 
-    @Test fun `shortcut must be letters and digits`() {
-        val id = addPinnedClip("Best regards")
-        assertEquals(ShortcutError.INVALID_CHARACTERS, dao.getShortcutError(id, "s-g"))
-        assertEquals(ShortcutError.INVALID_CHARACTERS, dao.getShortcutError(id, "two words"))
-        assertNull(dao.getShortcutError(id, "größe2"))
-        assert(!dao.setShortcut(id, "s-g"))
-        assertNull(dao.get(id).shortcut)
+    @Test fun `snippet needs text and a unique shortcut of letters and digits`() {
+        assertEquals(ShortcutError.INVALID_CHARACTERS, dao.getShortcutError(-1, "two words"))
+        assertNull(dao.getShortcutError(-1, "größe2"))
+        assert(!dao.saveSnippet(null, "  ", "sig"))
+        assert(!dao.saveSnippet(null, "Best regards", "s-g"))
+        assert(dao.saveSnippet(null, "Best regards", "sig"))
+        assert(!dao.saveSnippet(null, "Kind regards", "SIG"))
+        assertNull(dao.getShortcutError(dao.getAll().single().id, "SIG")) // own shortcut is fine
+        assertEquals(listOf("Best regards"), dao.getAll().map { it.text })
     }
 
-    @Test fun `shortcut must be unique ignoring case`() {
-        val first = addPinnedClip("Best regards")
-        val second = addPinnedClip("Kind regards")
-        assert(dao.setShortcut(first, "sig"))
-        assertEquals(ShortcutError.IN_USE, dao.getShortcutError(second, "SIG"))
-        assertNull(dao.getShortcutError(first, "SIG")) // own shortcut is fine
-    }
-
-    @Test fun `blank shortcut removes it`() {
-        val id = addPinnedClip("Best regards")
-        assert(dao.setShortcut(id, "sig"))
-        assert(dao.setShortcut(id, "  "))
-        assertNull(dao.get(id).shortcut)
-        assertNull(readShortcutFromDb(id))
+    @Test fun `editing a snippet changes text and blank removes the shortcut`() {
+        assert(dao.saveSnippet(null, "Best regards", "sig"))
+        val id = dao.getAll().single().id
+        assert(dao.saveSnippet(id, "Kind regards", "kr"))
+        assertEquals("Kind regards", readFromDb(id, "TEXT"))
         assertEquals(emptyList(), dao.getSnippetsForShortcut("sig"))
+        assertEquals(listOf("Kind regards"), dao.getSnippetsForShortcut("kr").map { it.text })
+        assert(dao.saveSnippet(id, "Kind regards", "  "))
+        assertNull(readFromDb(id, "SHORTCUT"))
+        assertEquals(emptyList(), dao.getSnippetsForShortcut("kr"))
     }
 
     @Test fun `only pinned clips are snippets`() {
-        val id = addPinnedClip("Best regards")
-        assert(dao.setShortcut(id, "sig"))
-        dao.togglePinned(id)
+        assert(dao.saveSnippet(null, "Best regards", "sig"))
+        dao.togglePinned(dao.getAll().single().id)
         assertEquals(emptyList(), dao.getSnippetsForShortcut("sig"))
+    }
+
+    @Test fun `deleted snippet is not suggested`() {
+        assert(dao.saveSnippet(null, "Best regards", "sig"))
+        dao.deleteClip(dao.getAll().single().id)
+        assertEquals(emptyList(), dao.getSnippetsForShortcut("sig"))
+        assertEquals(0, dao.count())
     }
 
     @Test fun `restoring a version 3 backup adds the shortcut column`() {
@@ -95,13 +99,8 @@ class ClipboardDaoTest {
         assertEquals(listOf("Best regards"), dao.getSnippetsForShortcut("sig").map { it.text })
     }
 
-    private fun addPinnedClip(text: String): Long {
-        dao.insertNewEntry(System.currentTimeMillis(), true, text, null, null, null)
-        return dao.getAll().first { it.text == text }.id
-    }
-
-    private fun readShortcutFromDb(id: Long): String? =
-        Database.getInstance(context).readableDatabase.rawQuery("SELECT SHORTCUT FROM CLIPBOARD WHERE ID = $id", null).use {
+    private fun readFromDb(id: Long, column: String): String? =
+        Database.getInstance(context).readableDatabase.rawQuery("SELECT $column FROM CLIPBOARD WHERE ID = $id", null).use {
             it.moveToFirst()
             it.getStringOrNull(0)
         }

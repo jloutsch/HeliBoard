@@ -217,7 +217,13 @@
     <!-- Description for clipboard snippets preference -->
     <string name="clipboard_snippets_summary">Type a shortcut to get a pinned item as suggestion</string>
     <!-- Shown in clipboard snippets screen if there are no pinned text items -->
-    <string name="clipboard_snippets_empty">Pin text in the clipboard history to give it a shortcut</string>
+    <string name="clipboard_snippets_empty">Add a snippet, or pin text in the clipboard history to give it a shortcut</string>
+    <!-- Button and dialog title for adding a clipboard snippet -->
+    <string name="clipboard_snippet_add">Add snippet</string>
+    <!-- Dialog title for editing a clipboard snippet -->
+    <string name="clipboard_snippet_edit">Edit snippet</string>
+    <!-- Label for the text field of a clipboard snippet -->
+    <string name="clipboard_snippet_text">Text</string>
     <!-- Label for the shortcut field of a clipboard snippet -->
     <string name="clipboard_snippet_shortcut">Shortcut</string>
     <!-- Error when a clipboard snippet shortcut contains other characters than letters and digits -->
