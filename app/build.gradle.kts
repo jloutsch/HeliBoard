@@ -2,8 +2,8 @@ import com.android.build.api.variant.ApplicationVariant
 
 plugins {
     id("com.android.application")
-    kotlin("plugin.serialization") version "2.4.0"
-    kotlin("plugin.compose") version "2.4.0"
+    kotlin("plugin.serialization") version "2.4.20"
+    kotlin("plugin.compose") version "2.4.20"
 }
 
 android {
