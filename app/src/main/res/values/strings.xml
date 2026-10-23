@@ -733,6 +733,18 @@ New dictionary:
     <string name="user_dict_word_already_present">This word is already present in the %s user dictionary. Please type another one.</string>
     <!-- User dictionary settings. Text button to add a word -->
     <string name="user_dict_add_word_button">Add a word</string>
+    <!-- Menu entry in personal dictionary to import the vocabulary.txt file SwiftKey keeps in OneDrive -->
+    <string name="import_swiftkey_vocabulary">Import SwiftKey vocabulary</string>
+    <!-- Shown while the SwiftKey vocabulary file is checked against the dictionaries -->
+    <string name="swiftkey_import_reading">Reading file…</string>
+    <!-- Error when the selected file is not a SwiftKey vocabulary.txt -->
+    <string name="swiftkey_import_wrong_file">This is not a SwiftKey vocabulary file. You can find vocabulary.txt in your OneDrive in Apps > SwiftKey.</string>
+    <!-- Confirmation for importing SwiftKey words. %1$d is the number of words, %2$s the language, %3$d the number of skipped entries -->
+    <string name="swiftkey_import_message">Add %1$d words to the personal dictionary (%2$s)?\n\n%3$d entries are skipped because they are already known, or are numbers, links, mail addresses and similar.</string>
+    <!-- Shown when a SwiftKey vocabulary file contains no new words. %d is the number of skipped entries -->
+    <string name="swiftkey_import_no_new_words">No new words found, all %d entries are already known, or are numbers, links, mail addresses and similar.</string>
+    <!-- Shown after importing SwiftKey words. %d is the number of added words -->
+    <string name="swiftkey_import_done">Added %d words to the personal dictionary.</string>
     <!-- Option for choosing theme style -->
     <string name="theme_style">Style</string>
     <!-- Option for choosing icon style (same options as theme_style) -->

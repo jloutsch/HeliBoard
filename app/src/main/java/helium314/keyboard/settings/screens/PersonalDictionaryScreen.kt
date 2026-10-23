@@ -40,6 +40,8 @@ import helium314.keyboard.latin.common.LocaleUtils.localizedDisplayName
 import helium314.keyboard.settings.DropDownField
 import helium314.keyboard.settings.SearchScreen
 import helium314.keyboard.settings.dialogs.ThreeButtonAlertDialog
+import helium314.keyboard.settings.dialogs.swiftKeyVocabularyIntent
+import helium314.keyboard.settings.dialogs.swiftKeyVocabularyPicker
 import java.util.Locale
 
 @Composable
@@ -47,8 +49,10 @@ fun PersonalDictionaryScreen(
     onClickBack: () -> Unit,
     locale: Locale?
 ) {
-    val words = getAll(locale, LocalContext.current)
+    val ctx = LocalContext.current
+    val words = getAll(locale, ctx)
     var selectedWord: Word? by remember { mutableStateOf(null) }
+    val swiftKeyPicker = swiftKeyVocabularyPicker(locale)
     SearchScreen(
         onClickBack = onClickBack,
         title = {
@@ -87,13 +91,21 @@ fun PersonalDictionaryScreen(
     if (selectedWord != null) {
         EditWordDialog(selectedWord!!, locale) { selectedWord = null }
     }
-    ExtendedFloatingActionButton(
-        onClick = { selectedWord = Word("", null, null) },
-        text = { Text(stringResource(R.string.user_dict_add_word_button)) },
-        icon = { Icon(painter = painterResource(R.drawable.ic_edit), stringResource(R.string.user_dict_add_word_button)) },
+    Column(
+        horizontalAlignment = Alignment.End,
+        verticalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier.wrapContentSize(Alignment.BottomEnd).padding(all = 12.dp)
             .then(Modifier.safeDrawingPadding())
-    )
+    ) {
+        ExtendedFloatingActionButton(onClick = { swiftKeyPicker.launch(swiftKeyVocabularyIntent(ctx)) }) {
+            Text(stringResource(R.string.import_swiftkey_vocabulary))
+        }
+        ExtendedFloatingActionButton(
+            onClick = { selectedWord = Word("", null, null) },
+            text = { Text(stringResource(R.string.user_dict_add_word_button)) },
+            icon = { Icon(painter = painterResource(R.drawable.ic_edit), stringResource(R.string.user_dict_add_word_button)) },
+        )
+    }
 }
 
 @Composable
