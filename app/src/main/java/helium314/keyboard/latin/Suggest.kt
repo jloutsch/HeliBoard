@@ -35,7 +35,11 @@ import kotlin.math.min
  * This class loads a dictionary and provides a list of suggestions for a given sequence of
  * characters. This includes corrections and completions.
  */
-class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
+class Suggest(
+    private val mDictionaryFacilitator: DictionaryFacilitator,
+    // returns texts of clipboard snippets whose shortcut is the given word
+    private val getClipboardSnippets: (String) -> List<String> = { emptyList() },
+) {
     private var mAutoCorrectionThreshold = 0f
     private val mPlausibilityThreshold = 0f
     private val nextWordSuggestionsCache = HashMap<NgramContext, SuggestionResults>()
@@ -92,7 +96,7 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
         val firstOccurrenceOfTypedWordInSuggestions = SuggestedWordInfo.removeDupsAndTypedWord(capitalizedTypedWord, suggestionsContainer)
         makeFirstTwoSuggestionsNonEmoji(suggestionsContainer)
 
-        val (allowsToBeAutoCorrected, hasAutoCorrection) = shouldBeAutoCorrected(
+        val (allowsToBeAutoCorrected, hasDictionaryAutoCorrection) = shouldBeAutoCorrected(
             trailingSingleQuotesCount,
             capitalizedTypedWord,
             suggestionsContainer.firstOrNull(),
@@ -109,6 +113,9 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
             firstOccurrenceOfTypedWordInSuggestions,
             typedWordFirstOccurrenceWordInfo
         )
+        // a snippet takes the place of the auto-correction, so space keeps the typed shortcut and only a tap inserts the snippet
+        val snippets = if (typedWordString.isEmpty()) emptyList() else getClipboardSnippets(typedWordString)
+        val hasAutoCorrection = hasDictionaryAutoCorrection && snippets.isEmpty()
         val typedWordInfo = SuggestedWordInfo(typedWordString, "", SuggestedWordInfo.MAX_SCORE,
             SuggestedWordInfo.KIND_TYPED, typedWordFirstOccurrenceWordInfo?.mSourceDict ?: Dictionary.DICTIONARY_USER_TYPED,
             SuggestedWordInfo.NOT_AN_INDEX , SuggestedWordInfo.NOT_A_CONFIDENCE)
@@ -131,7 +138,7 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
         // If there is an incoming autocorrection, make sure typed word is shown, so user is able to override it.
         // Otherwise, if the relevant setting is enabled, show the typed word in the middle.
         val typedWordWasCapitalized = capitalizedTypedWord != typedWordString
-        val correctToCapitalizedWord = typedWordWasCapitalized && isCorrectionEnabled && Settings.getValues().mAutoCorrectCapitalizedSuggestion
+        val correctToCapitalizedWord = typedWordWasCapitalized && isCorrectionEnabled && snippets.isEmpty() && Settings.getValues().mAutoCorrectCapitalizedSuggestion
             && !wordComposer.isCursorFrontOrMiddleOfComposingWord && typedWordString.drop(1).none { it.isUpperCase() }
         val indexOfTypedWord = 1 + if (hasAutoCorrection) SuggestedWords.INDEX_OF_AUTO_CORRECTION else SuggestedWords.INDEX_OF_TYPED_WORD
         if (
@@ -148,6 +155,14 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
                         Dictionary.DICTIONARY_USER_TYPED, SuggestedWordInfo.NOT_AN_INDEX, SuggestedWordInfo.NOT_A_CONFIDENCE)
                 )
             }
+        }
+        // index 1 is shown in the center of the strip
+        if (suggestionsList.isNotEmpty()) {
+            suggestionsList.subList(1, suggestionsList.size).removeAll { it.mWord in snippets }
+            suggestionsList.addAll(1, snippets.map {
+                SuggestedWordInfo(it, "", SuggestedWordInfo.MAX_SCORE, SuggestedWordInfo.KIND_CLIPBOARD_SNIPPET,
+                    Dictionary.DICTIONARY_USER_TYPED, SuggestedWordInfo.NOT_AN_INDEX, SuggestedWordInfo.NOT_A_CONFIDENCE)
+            })
         }
         val isTypedWordValid = firstOccurrenceOfTypedWordInSuggestions > -1 || (!resultsArePredictions && !allowsToBeAutoCorrected)
         return SuggestedWords(suggestionsList, suggestionResults.mRawSuggestions, typedWordInfo,

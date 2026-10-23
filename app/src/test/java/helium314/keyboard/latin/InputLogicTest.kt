@@ -719,6 +719,17 @@ class InputLogicTest {
         assertEquals(5, cursor)
     }
 
+    @Test fun pickingClipboardSnippetReplacesShortcutWithoutLearning() {
+        chainInput("sig")
+        lastAddedWord = ""
+        val snippet = "Best regards\nJustin"
+        latinIME.pickSuggestionManually(SuggestedWordInfo(snippet, "", 0, SuggestedWordInfo.KIND_CLIPBOARD_SNIPPET, null, 0, 0))
+        checkConnectionConsistency()
+        assertEquals(snippet, text)
+        assertEquals("", composingText)
+        assertEquals("", lastAddedWord)
+    }
+
     // ------- helper functions ---------
 
     // should be called before every test, so the same state is guaranteed

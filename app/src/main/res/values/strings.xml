@@ -212,6 +212,18 @@
     <string name="clipboard_history_retention_time">History retention time</string>
     <!-- Preferences item for showing pinned clipboard items first -->
     <string name="clipboard_history_pinned_first">Show pinned items on top</string>
+    <!-- Preferences item and screen title for setting shortcuts on pinned clipboard items -->
+    <string name="clipboard_snippets">Clipboard snippets</string>
+    <!-- Description for clipboard snippets preference -->
+    <string name="clipboard_snippets_summary">Type a shortcut to get a pinned item as suggestion</string>
+    <!-- Shown in clipboard snippets screen if there are no pinned text items -->
+    <string name="clipboard_snippets_empty">Pin text in the clipboard history to give it a shortcut</string>
+    <!-- Label for the shortcut field of a clipboard snippet -->
+    <string name="clipboard_snippet_shortcut">Shortcut</string>
+    <!-- Error when a clipboard snippet shortcut contains other characters than letters and digits -->
+    <string name="clipboard_snippet_shortcut_invalid">Only letters and digits are allowed</string>
+    <!-- Error when a clipboard snippet shortcut is already used by another snippet -->
+    <string name="clipboard_snippet_shortcut_used">Shortcut already in use</string>
     <!-- Preferences item for extending the clipboard history to files (images or others) -->
     <string name="clipboard_history_files">Add images and other files to clipboard history</string>
     <!-- Preferences item for selecting maximum combined size of clipboard history files -->

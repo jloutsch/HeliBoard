@@ -18,7 +18,10 @@ import helium314.keyboard.latin.utils.ChecksumCalculator
 import helium314.keyboard.latin.utils.Log
 import helium314.keyboard.latin.utils.prefs
 import java.io.File
+import java.util.Locale
 import kotlin.collections.joinToString
+
+enum class ShortcutError { INVALID_CHARACTERS, IN_USE }
 
 /** Class providing cached access to the clipboard table */
 // currently we should not need to worry about synchronizing access (though maybe we could addClip in a coroutine, then it might be relevant)
@@ -38,7 +41,7 @@ class ClipboardDao private constructor(private val db: Database) {
     private val cache = mutableListOf<ClipboardHistoryEntry>().apply {
         db.readableDatabase.query(
             TABLE,
-            arrayOf(COLUMN_ID, COLUMN_TIMESTAMP, COLUMN_PINNED, COLUMN_TEXT, COLUMN_FILE, COLUMN_MIME_TYPE),
+            arrayOf(COLUMN_ID, COLUMN_TIMESTAMP, COLUMN_PINNED, COLUMN_TEXT, COLUMN_FILE, COLUMN_MIME_TYPE, COLUMN_SHORTCUT),
             null,
             null,
             null,
@@ -53,6 +56,7 @@ class ClipboardDao private constructor(private val db: Database) {
                     it.getStringOrNull(3),
                     it.getStringOrNull(4),
                     it.getStringOrNull(5)?.split('§')?.filter { it.isNotEmpty() },
+                    it.getStringOrNull(6),
                 ))
             }
         }
@@ -117,17 +121,18 @@ class ClipboardDao private constructor(private val db: Database) {
     }
 
     /** only public for restoring backups */
-    fun insertNewEntry(timestamp: Long, pinned: Boolean, text: String?, filename: String?, mimeTypes: List<String>?, context: Context?) {
-        val cv = ContentValues(5)
+    fun insertNewEntry(timestamp: Long, pinned: Boolean, text: String?, filename: String?, mimeTypes: List<String>?, context: Context?, shortcut: String? = null) {
+        val cv = ContentValues(6)
         cv.put(COLUMN_TIMESTAMP, timestamp)
         cv.put(COLUMN_PINNED, pinned)
         cv.put(COLUMN_TEXT, text)
         cv.put(COLUMN_FILE, filename)
         // § should be a safe separator, not allowed in mime types: https://datatracker.ietf.org/doc/html/rfc6838#section-4.2
         cv.put(COLUMN_MIME_TYPE, mimeTypes?.joinToString("§"))
+        cv.put(COLUMN_SHORTCUT, shortcut)
         val rowId = db.writableDatabase.insert(TABLE, null, cv)
 
-        val entry = ClipboardHistoryEntry(rowId, timestamp, pinned, text, filename, mimeTypes)
+        val entry = ClipboardHistoryEntry(rowId, timestamp, pinned, text, filename, mimeTypes, shortcut)
         if (filename != null && context != null)
             deleteIfSizeExceeded(context.prefs())
         cache.add(entry)
@@ -173,6 +178,31 @@ class ClipboardDao private constructor(private val db: Database) {
         cv.put(COLUMN_PINNED, entry.isPinned)
         cv.put(COLUMN_TIMESTAMP, entry.timeStamp)
         db.writableDatabase.update(TABLE, cv, "$COLUMN_ID = ${entry.id}", null)
+    }
+
+    /** Returns why [shortcut] can't be used for the clip with [id], or null if it can. Blank removes the shortcut, so it's valid. */
+    fun getShortcutError(id: Long, shortcut: String): ShortcutError? {
+        val normalized = normalizeShortcut(shortcut) ?: return null
+        if (!normalized.matches(SHORTCUT_REGEX)) return ShortcutError.INVALID_CHARACTERS
+        if (cache.any { it.shortcut == normalized && it.id != id }) return ShortcutError.IN_USE
+        return null
+    }
+
+    /** Sets the shortcut, or removes it if [shortcut] is blank. Returns false if [getShortcutError] reports an error. */
+    fun setShortcut(id: Long, shortcut: String): Boolean = synchronized(this) {
+        if (getShortcutError(id, shortcut) != null) return@synchronized false
+        val normalized = normalizeShortcut(shortcut)
+        cache.first { it.id == id }.shortcut = normalized
+        val cv = ContentValues(1)
+        cv.put(COLUMN_SHORTCUT, normalized)
+        db.writableDatabase.update(TABLE, cv, "$COLUMN_ID = $id", null)
+        true
+    }
+
+    /** Pinned text clips whose shortcut matches [word], ignoring case */
+    fun getSnippetsForShortcut(word: String): List<ClipboardHistoryEntry> {
+        val normalized = normalizeShortcut(word) ?: return emptyList()
+        return cache.filter { it.isPinned && it.shortcut == normalized && !it.text.isNullOrBlank() }
     }
 
     // RecyclerView initiates this, so we don't call listener (or we'll get an IndexOutOfRangeException from RecyclerView)
@@ -257,6 +287,7 @@ class ClipboardDao private constructor(private val db: Database) {
         private const val COLUMN_TEXT = "TEXT" // we could enforce unique text, but that's only necessary if we can drop the cache (later)
         private const val COLUMN_FILE = "FILE" // path relative to files dir
         private const val COLUMN_MIME_TYPE = "MIME_TYPE" // for files, actually a list of mime types according to clipboard description
+        private const val COLUMN_SHORTCUT = "SHORTCUT" // lowercase, see setShortcut
         const val CREATE_TABLE = """
             CREATE TABLE $TABLE (
                 $COLUMN_ID INTEGER PRIMARY KEY,
@@ -268,6 +299,12 @@ class ClipboardDao private constructor(private val db: Database) {
 
         const val ADD_FILE_COLUMN = "ALTER TABLE $TABLE ADD COLUMN $COLUMN_FILE TEXT"
         const val ADD_MIME_TYPE_COLUMN = "ALTER TABLE $TABLE ADD COLUMN $COLUMN_MIME_TYPE TEXT"
+        const val ADD_SHORTCUT_COLUMN = "ALTER TABLE $TABLE ADD COLUMN $COLUMN_SHORTCUT TEXT"
+
+        // letters and digits only, so a shortcut is always a single word
+        private val SHORTCUT_REGEX = Regex("[\\p{L}\\p{N}]+")
+
+        private fun normalizeShortcut(shortcut: String) = shortcut.trim().lowercase(Locale.ROOT).ifEmpty { null }
 
         private var instance: ClipboardDao? = null
         lateinit var clipFilesDir: File

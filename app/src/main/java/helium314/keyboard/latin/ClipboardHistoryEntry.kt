@@ -23,7 +23,8 @@ class ClipboardHistoryEntry(
     var isPinned: Boolean,
     val text: String?,
     val filename: String?,
-    val mimeTypes: List<String>?
+    val mimeTypes: List<String>?,
+    var shortcut: String? = null, // typing it suggests the text, only used for pinned clips
 ) : Comparable<ClipboardHistoryEntry> {
     // for display order
     override fun compareTo(other: ClipboardHistoryEntry): Int {

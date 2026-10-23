@@ -103,7 +103,11 @@ public final class InputLogic {
     public void setFacilitator(DictionaryFacilitator facilitator) { // only for active gesture data gathering, remove when data gathering phase is done (end of 2026 latest)
         if (mDictionaryFacilitator == facilitator) return;
         mDictionaryFacilitator = facilitator;
-        mSuggest = new Suggest(mDictionaryFacilitator);
+        mSuggest = createSuggest(mDictionaryFacilitator);
+    }
+
+    private Suggest createSuggest(DictionaryFacilitator facilitator) {
+        return new Suggest(facilitator, word -> mLatinIME.getClipboardHistoryManager().getSnippetsForShortcut(word));
     }
 
     public LastComposedWord mLastComposedWord = LastComposedWord.NOT_A_COMPOSED_WORD;
@@ -144,7 +148,7 @@ public final class InputLogic {
         mWordComposer = new WordComposer();
         mConnection = new RichInputConnection(latinIME);
         mInputLogicHandler = new InputLogicHandler(mLatinIME.mHandler, this);
-        mSuggest = new Suggest(dictionaryFacilitator);
+        mSuggest = createSuggest(dictionaryFacilitator);
         mDictionaryFacilitator = dictionaryFacilitator;
     }
 
@@ -339,7 +343,13 @@ public final class InputLogic {
             return inputTransaction;
         }
 
-        commitChosenWord(settingsValues, suggestion, LastComposedWord.COMMIT_TYPE_MANUAL_PICK, LastComposedWord.NOT_A_SEPARATOR);
+        if (suggestionInfo.isKindOf(SuggestedWordInfo.KIND_CLIPBOARD_SNIPPET)) {
+            // replace the typed shortcut, but don't learn the snippet or allow reverting it to the shortcut
+            mConnection.commitText(suggestion, 1);
+            resetComposingState(true);
+        } else {
+            commitChosenWord(settingsValues, suggestion, LastComposedWord.COMMIT_TYPE_MANUAL_PICK, LastComposedWord.NOT_A_SEPARATOR);
+        }
         mConnection.endBatchEdit();
         // Don't allow cancellation of manual pick
         mLastComposedWord.deactivate();
