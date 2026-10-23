@@ -18,6 +18,7 @@ import helium314.keyboard.latin.common.ComposedData
 import helium314.keyboard.latin.common.Constants
 import helium314.keyboard.latin.common.InputPointers
 import helium314.keyboard.latin.common.StringUtils
+import helium314.keyboard.latin.database.ClipboardDao
 import helium314.keyboard.latin.dictionary.Dictionary
 import helium314.keyboard.latin.settings.Settings
 import helium314.keyboard.latin.settings.SettingsValuesForSuggestion
@@ -58,6 +59,7 @@ class SuggestTest {
 
     @BeforeTest fun reset() {
         latinIME.prefs().edit { clear() }
+        ClipboardDao.getInstance(latinIME)!!.clear()
         currentTypingLocale = Locale.ENGLISH
         tapTypingSuggestions = suggestionResults(emptyList())
         glideTypingSuggestions = suggestionResults(emptyList())
@@ -588,6 +590,27 @@ class SuggestTest {
         val result4 = getSuggestedWords(false, "bur", CapsMode.MANUAL_LOCKED)
         assert(result4.mWillAutoCorrect)
         assertEquals(listOf("bur", "BUR", "BUT", "BIT", "BUY", "😢", "BUTTER"), result4.mSuggestedWordInfoList.map { it.mWord })
+    }
+
+    @Test fun `clipboard snippet is shown in the center and blocks autocorrect`() {
+        enableAutocorrect(confidenceModest)
+        tapTypingSuggestions = suggestionResults(listOf(suggestion("sign", Int.MAX_VALUE), suggestion("sigh", 1500000)))
+        assert(getSuggestedWords(false, "sig", CapsMode.OFF).mWillAutoCorrect) // without snippet
+
+        assert(ClipboardDao.getInstance(latinIME)!!.saveSnippet(null, "Best regards", "SIG"))
+        val result = getSuggestedWords(false, "Sig", CapsMode.OFF)
+        assert(!result.mWillAutoCorrect)
+        assertEquals("Best regards", result.getInfo(SuggestedWords.INDEX_OF_AUTO_CORRECTION).mWord)
+        assert(result.getInfo(SuggestedWords.INDEX_OF_AUTO_CORRECTION).isKindOf(SuggestedWordInfo.KIND_CLIPBOARD_SNIPPET))
+    }
+
+    @Test fun `unpinned clip with shortcut is not suggested`() {
+        val dao = ClipboardDao.getInstance(latinIME)!!
+        assert(dao.saveSnippet(null, "Best regards", "sig"))
+        dao.togglePinned(dao.getAll().single().id)
+        tapTypingSuggestions = suggestionResults(listOf(suggestion("sign", 1500000)))
+        val result = getSuggestedWords(false, "sig", CapsMode.OFF)
+        assert(result.mSuggestedWordInfoList.none { it.isKindOf(SuggestedWordInfo.KIND_CLIPBOARD_SNIPPET) })
     }
 
     private fun getSuggestedWords(gesture: Boolean, typedWord: String, capsMode: CapsMode): SuggestedWords {

@@ -24,11 +24,14 @@ class Database private constructor(context: Context, name: String = NAME) : SQLi
             db.execSQL(ClipboardDao.ADD_FILE_COLUMN)
             db.execSQL(ClipboardDao.ADD_MIME_TYPE_COLUMN)
         }
+        if (oldVersion <= 3) {
+            db.execSQL(ClipboardDao.ADD_SHORTCUT_COLUMN)
+        }
     }
 
     companion object {
         private val TAG = Database::class.java.simpleName
-        private const val VERSION = 3
+        private const val VERSION = 4
         const val NAME = "heliboard.db"
         private var instance: Database? = null
         fun getInstance(context: Context): Database {
@@ -50,7 +53,7 @@ class Database private constructor(context: Context, name: String = NAME) : SQLi
                     if (clipDao == null) {
                         Log.e(TAG, "can't transfer clipboard data because ClipboardDao is null")
                     } else {
-                        otherDb.readableDatabase.rawQuery("SELECT TIMESTAMP, PINNED, TEXT, FILE, MIME_TYPE FROM CLIPBOARD", null)
+                        otherDb.readableDatabase.rawQuery("SELECT TIMESTAMP, PINNED, TEXT, FILE, MIME_TYPE, SHORTCUT FROM CLIPBOARD", null)
                             .use {
                                 clipDao.clear()
                                 while (it.moveToNext()) {
@@ -60,7 +63,8 @@ class Database private constructor(context: Context, name: String = NAME) : SQLi
                                         it.getStringOrNull(2),
                                         it.getStringOrNull(3),
                                         it.getStringOrNull(4)?.split("§"),
-                                        null
+                                        null,
+                                        it.getStringOrNull(5)
                                     )
                                 }
                             }
