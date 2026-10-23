@@ -208,13 +208,19 @@ class StringUtilsTest {
         assertEquals("word", stripTrailingSeparatorsAndConnectors("word'-'", svfs))
     }
 
-    @Test fun `last word length includes trailing spaces but not a line break`() {
+    @Test fun `last word length includes trailing spaces and punctuation but not a line break`() {
         val sp = SpacingAndPunctuations(ApplicationProvider.getApplicationContext<App>().resources, false, Locale.ROOT)
         assertEquals("lima".length, "kilo lima".getLastWordLength(sp))
         assertEquals("kilo ".length, "kilo ".getLastWordLength(sp))
         assertEquals("lima \t ".length, "kilo lima \t ".getLastWordLength(sp))
+        assertEquals("world.".length, "hello, world.".getLastWordLength(sp))
+        assertEquals("hello, ".length, "hello, ".getLastWordLength(sp))
+        assertEquals("it's ".length, "it's ".getLastWordLength(sp))
+        assertEquals("e-mail ".length, "e-mail ".getLastWordLength(sp))
         assertEquals("   ".length, "   ".getLastWordLength(sp))
+        assertEquals("...".length, "...".getLastWordLength(sp))
         assertEquals("\n ".length, "kilo\n ".getLastWordLength(sp))
+        assertEquals("\n.".length, "kilo\n.".getLastWordLength(sp))
     }
 
     private fun getFullEmojiAtStart(text: String): String {
