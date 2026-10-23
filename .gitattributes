@@ -1,0 +1,2 @@
+# this fork and upstream both add strings; keep both sides' lines instead of conflicting (used by .github/workflows/sync-upstream.yml)
+app/src/main/res/values/strings.xml merge=union

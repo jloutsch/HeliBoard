@@ -1,6 +1,8 @@
 name: Sync with upstream
 
 # keeps this fork's main up to date with Helium314/HeliBoard
+# merges here instead of using GitHub's merge-upstream, so .gitattributes (union merge for strings.xml) applies
+# and nothing reaches main unless the unit tests pass; any failure opens or updates an issue
 on:
   schedule:
     - cron: '23 5 * * *'
@@ -8,14 +10,65 @@ on:
 
 permissions:
   contents: write
+  issues: write
 
 jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
-      - name: Merge upstream main into main
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Merge upstream main
+        id: merge
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch https://github.com/Helium314/HeliBoard.git main
+          if git merge-base --is-ancestor FETCH_HEAD HEAD; then
+            echo "already up to date"
+            exit 0
+          fi
+          if ! git merge --no-edit -m "Merge upstream HeliBoard main" FETCH_HEAD; then
+            echo "Merge conflicts in:" > problem.txt
+            git diff --name-only --diff-filter=U | sed 's/^/- /' >> problem.txt
+            exit 1
+          fi
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-java@v4
+        if: steps.merge.outputs.changed == 'true'
+        with:
+          java-version: '21' # Robolectric needs 21 for SDK 36
+          distribution: 'temurin'
+
+      - uses: gradle/actions/setup-gradle@v3
+        if: steps.merge.outputs.changed == 'true'
+
+      - name: Run unit tests on the merge
+        if: steps.merge.outputs.changed == 'true'
+        run: |
+          chmod +x gradlew
+          ./gradlew testRunTestsUnitTest -Pandroid.onlyEnableUnitTestForTheTestedBuildType=false \
+            || { echo "Unit tests fail after merging upstream. A strings.xml entry changed on both sides shows up as a duplicate resource." > problem.txt; exit 1; }
+
+      - name: Push to main
+        if: steps.merge.outputs.changed == 'true'
+        run: |
+          git push origin HEAD:main \
+            || { echo "Push failed. If upstream changed .github/workflows, GITHUB_TOKEN can't push that; use \"Sync fork\" on GitHub once." > problem.txt; exit 1; }
+
+      - name: Report failure in an issue
+        if: failure()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        # fast-forwards, or creates a merge commit if main has its own commits (like this workflow)
-        # fails if upstream changed workflow files (GITHUB_TOKEN can't write those), then use "Sync fork" on GitHub once
-        run: gh api --method POST "repos/${{ github.repository }}/merge-upstream" -f branch=main
+        run: |
+          [ -f problem.txt ] || echo "The sync job failed before merging." > problem.txt
+          printf '\nRun: %s/%s/actions/runs/%s\n' "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" >> problem.txt
+          existing=$(gh issue list --state open --search 'in:title "Upstream sync failed"' --json number -q '.[0].number')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body-file problem.txt
+          else
+            gh issue create --title "Upstream sync failed" --body-file problem.txt
+          fi
