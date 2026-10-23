@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package helium314.keyboard.keyboard
 
-import helium314.keyboard.keyboard.internal.keyboard_parser.floris.KeyCode
-import helium314.keyboard.latin.common.Constants
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import kotlin.test.Test
@@ -10,20 +8,14 @@ import kotlin.test.assertEquals
 
 @RunWith(RobolectricTestRunner::class)
 class PointerTrackerTest {
-    @Test fun `holding delete deletes a word on the first repeat and then once per long press delay`() {
-        // 400 ms long press / 50 ms repeat interval -> one word every 8 repeats
-        val codes = (1..17).map { PointerTracker.getRepeatCode(KeyCode.DELETE, it, true, 400, 50) }
-        val wordRepeats = codes.withIndex().filter { it.value == KeyCode.DELETE_WORD }.map { it.index + 1 }
-        assertEquals(listOf(1, 9, 17), wordRepeats)
-        assert(codes.all { it == KeyCode.DELETE_WORD || it == Constants.NOT_A_CODE })
+    @Test fun `deleting words gets faster the longer delete is held`() {
+        val delays = (1..20).map { PointerTracker.getRepeatDelay(it, true, 400, 50) }
+        assertEquals(listOf(400, 500, 250, 236), delays.take(4))
+        assert(delays.drop(2).zipWithNext().all { (a, b) -> b <= a })
+        assertEquals(120, delays.last())
     }
 
-    @Test fun `key repeat is unchanged when the option is off or for other keys`() {
-        assertEquals(KeyCode.DELETE, PointerTracker.getRepeatCode(KeyCode.DELETE, 2, false, 400, 50))
-        assertEquals(KeyCode.ARROW_LEFT, PointerTracker.getRepeatCode(KeyCode.ARROW_LEFT, 2, true, 400, 50))
-    }
-
-    @Test fun `long press shorter than the repeat interval deletes a word on every repeat`() {
-        assertEquals(KeyCode.DELETE_WORD, PointerTracker.getRepeatCode(KeyCode.DELETE, 2, true, 30, 50))
+    @Test fun `key repeat timing is unchanged when not deleting words`() {
+        assertEquals(listOf(400, 50, 50), (1..3).map { PointerTracker.getRepeatDelay(it, false, 400, 50) })
     }
 }

@@ -184,9 +184,12 @@ val CharSequence.lastGraphemeLength: Int get() {
 
 fun CharSequence.getLastWordLength(sp: SpacingAndPunctuations): Int {
     if (length <= 1) return length
+    // trailing spaces go with the word before them, like ctrl+backspace, but a line break stays a separate step
+    val end = trimEnd { it == ' ' || it == '\t' }.length
+    if (end == 0) return length
     val iterator = WordBreakIterator.getForSpacingAndPunctuations(sp)
-    iterator.text = this
-    return length - iterator.preceding(length)
+    iterator.text = subSequence(0, end)
+    return length - iterator.preceding(end)
 }
 
 /** translates a move of [steps] in [text] as defined by [iterator] to character count */
