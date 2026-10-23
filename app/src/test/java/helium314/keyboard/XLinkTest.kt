@@ -69,6 +69,7 @@ class XLinkTest { // Without the X, SubtypeTests fail with ClassCastException. W
     }
 
     private fun checkLink(link: String) {
+        if (link.contains("reddit.com")) return // reddit answers 403 to CI servers
         if (link.contains("wiki/"))
             return checkWikiLink(link)
         val url = URL(link)
