@@ -25,6 +25,12 @@ class SwiftKeyVocabularyTest {
         assertFalse(SwiftKeyVocabulary.isSwiftKeyVocabulary("hello\nworld"))
     }
 
+    @Test fun readsFilesUpToTheSizeLimit() {
+        assertEquals("$header\nMünster", SwiftKeyVocabulary.readText("$header\nMünster".byteInputStream()))
+        assertEquals("x".repeat(20_000), SwiftKeyVocabulary.readText("x".repeat(20_000).byteInputStream(), 20_000))
+        assertEquals(null, SwiftKeyVocabulary.readText("x".repeat(20_001).byteInputStream(), 20_000))
+    }
+
     @Test fun keepsUnknownWords() {
         val result = filter("Contoso", "chatgpt", "airpods", "iPad", "2fa", "n95", "Chick-fil-A", "Münster")
         assertEquals(listOf("Contoso", "chatgpt", "airpods", "iPad", "2fa", "n95", "Chick-fil-A", "Münster"), result.words)

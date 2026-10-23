@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package helium314.keyboard.latin.utils
 
+import java.io.ByteArrayOutputStream
+import java.io.InputStream
 import java.text.Normalizer
 
 /**
@@ -13,8 +15,22 @@ import java.text.Normalizer
  */
 object SwiftKeyVocabulary {
     private const val HEADER = "# Your SwiftKey vocabulary"
+    // a word list is far smaller; a bigger file was picked by mistake and could run the keyboard's process out of memory
+    const val MAX_FILE_BYTES = 10_000_000
 
     fun isSwiftKeyVocabulary(text: String) = text.trimStart('\uFEFF').startsWith(HEADER)
+
+    /** Text of [stream] as UTF-8, or null if it's larger than [maxBytes] */
+    fun readText(stream: InputStream, maxBytes: Int = MAX_FILE_BYTES): String? {
+        val bytes = ByteArrayOutputStream()
+        val buffer = ByteArray(8192)
+        while (true) {
+            val read = stream.read(buffer)
+            if (read < 0) return bytes.toString("UTF-8")
+            bytes.write(buffer, 0, read)
+            if (bytes.size() > maxBytes) return null
+        }
+    }
 
     class Result(val words: List<String>, val skipped: Int)
 

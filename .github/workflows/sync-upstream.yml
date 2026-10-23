@@ -3,39 +3,32 @@ name: Sync with upstream
 # keeps this fork's main up to date with Helium314/HeliBoard
 # merges here instead of using GitHub's merge-upstream, so .gitattributes (union merge for strings.xml) applies
 # and nothing reaches main unless the unit tests pass; any failure opens or updates an issue
+# upstream's build scripts only run in the "test" job, which has no write access; the "push" job never runs upstream code
 on:
   schedule:
     - cron: '23 5 * * *'
   workflow_dispatch:
 
-permissions:
-  contents: write
-  issues: write
+permissions: {}
 
 jobs:
-  sync:
+  test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      changed: ${{ steps.merge.outputs.changed }}
+      tree: ${{ steps.merge.outputs.tree }}
+      problem: ${{ steps.problem.outputs.text }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Merge upstream main
         id: merge
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git fetch https://github.com/Helium314/HeliBoard.git main
-          if git merge-base --is-ancestor FETCH_HEAD HEAD; then
-            echo "already up to date"
-            exit 0
-          fi
-          if ! git merge --no-edit -m "Merge upstream HeliBoard main" FETCH_HEAD; then
-            echo "Merge conflicts in:" > problem.txt
-            git diff --name-only --diff-filter=U | sed 's/^/- /' >> problem.txt
-            exit 1
-          fi
-          echo "changed=true" >> "$GITHUB_OUTPUT"
+        run: bash .github/sync-merge.sh
 
       - uses: actions/setup-java@v4
         if: steps.merge.outputs.changed == 'true'
@@ -45,6 +38,8 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v3
         if: steps.merge.outputs.changed == 'true'
+        with:
+          cache-read-only: true # don't let upstream's build write to the cache that PR builds use
 
       - name: Run unit tests on the merge
         if: steps.merge.outputs.changed == 'true'
@@ -53,22 +48,65 @@ jobs:
           ./gradlew testRunTestsUnitTest -Pandroid.onlyEnableUnitTestForTheTestedBuildType=false \
             || { echo "Unit tests fail after merging upstream. A strings.xml entry changed on both sides shows up as a duplicate resource." > problem.txt; exit 1; }
 
-      - name: Push to main
-        if: steps.merge.outputs.changed == 'true'
-        run: |
-          git push origin HEAD:main \
-            || { echo "Push failed. If upstream changed .github/workflows, GITHUB_TOKEN can't push that; use \"Sync fork\" on GitHub once." > problem.txt; exit 1; }
-
-      - name: Report failure in an issue
+      - name: Pass the problem on to the report job
+        id: problem
         if: failure()
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           [ -f problem.txt ] || echo "The sync job failed before merging." > problem.txt
-          printf '\nRun: %s/%s/actions/runs/%s\n' "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" >> problem.txt
-          existing=$(gh issue list --state open --search 'in:title "Upstream sync failed"' --json number -q '.[0].number')
+          delimiter=$(openssl rand -hex 16)
+          { echo "text<<$delimiter"; cat problem.txt; echo "$delimiter"; } >> "$GITHUB_OUTPUT"
+
+  push:
+    needs: test
+    if: needs.test.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      problem: ${{ steps.push.outputs.problem }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      # merge again with plain git, push only if it's exactly the tree the test job tested
+      - name: Merge upstream main
+        id: merge
+        run: bash .github/sync-merge.sh
+
+      - name: Push to main
+        id: push
+        env:
+          MERGED_TREE: ${{ steps.merge.outputs.tree }}
+          TESTED_TREE: ${{ needs.test.outputs.tree }}
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "$MERGED_TREE" != "$TESTED_TREE" ]; then
+            echo "problem=Upstream or main changed between testing and pushing; the next run retries." >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+          git push "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:main \
+            || { echo "problem=Push failed. If upstream changed .github/workflows, GITHUB_TOKEN can't push that; use \"Sync fork\" on GitHub once." >> "$GITHUB_OUTPUT"; exit 1; }
+
+  report:
+    needs: [test, push]
+    if: always() && (needs.test.result == 'failure' || needs.push.result == 'failure')
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Report failure in an issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TEST_PROBLEM: ${{ needs.test.outputs.problem }}
+          PUSH_PROBLEM: ${{ needs.push.outputs.problem }}
+        run: |
+          problem="${PUSH_PROBLEM:-${TEST_PROBLEM:-The sync job failed.}}"
+          printf '%s\n\nRun: %s/%s/actions/runs/%s\n' "$problem" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" > body.txt
+          existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search 'in:title "Upstream sync failed"' --json number -q '.[0].number')
           if [ -n "$existing" ]; then
-            gh issue comment "$existing" --body-file problem.txt
+            gh issue comment "$existing" --repo "$GITHUB_REPOSITORY" --body-file body.txt
           else
-            gh issue create --title "Upstream sync failed" --body-file problem.txt
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "Upstream sync failed" --body-file body.txt
           fi

@@ -58,9 +58,9 @@ fun swiftKeyVocabularyPicker(locale: Locale?): ManagedActivityResultLauncher<Int
         state = ImportState.Reading
         readJob = scope.launch {
             val result = try {
-                val text = ctx.contentResolver.openInputStream(uri)?.use { it.reader().readText() } ?: ""
+                val text = ctx.contentResolver.openInputStream(uri)?.use { SwiftKeyVocabulary.readText(it) }
                 ensureActive()
-                if (!SwiftKeyVocabulary.isSwiftKeyVocabulary(text)) ImportState.WrongFile
+                if (text == null || !SwiftKeyVocabulary.isSwiftKeyVocabulary(text)) ImportState.WrongFile
                 else {
                     val known = getKnownWordsLowercase(ctx, locale)
                     ensureActive()
