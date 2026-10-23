@@ -33,7 +33,8 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build with Gradle
-        run: ./gradlew testRunTestsUnitTest
+        # AGP 9 only creates unit test tasks for the debug build type unless this is false
+        run: ./gradlew testRunTestsUnitTest -Pandroid.onlyEnableUnitTestForTheTestedBuildType=false
 
       - name: Archive reports for failed job
         uses: actions/upload-artifact@v4
