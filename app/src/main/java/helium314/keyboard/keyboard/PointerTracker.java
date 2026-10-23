@@ -1346,15 +1346,21 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
         mIsDetectingGesture = false;
         final int nextRepeatCount = repeatCount + 1;
         startKeyRepeatTimer(nextRepeatCount);
-        int inputCode = code;
-        if (code == KeyCode.DELETE && Settings.getValues().mDeleteWordOnLongPress) {
-            // delete a word on the first repeat, then one per long press delay
-            final int repeatsPerWord = Math.max(1, Settings.getValues().mKeyLongpressTimeout / sParams.mKeyRepeatInterval);
-            if ((repeatCount - 1) % repeatsPerWord != 0) return;
-            inputCode = KeyCode.DELETE_WORD;
-        }
+        final SettingsValues settings = Settings.getValues();
+        final int inputCode = getRepeatCode(code, repeatCount, settings.mDeleteWordOnLongPress,
+                settings.mKeyLongpressTimeout, sParams.mKeyRepeatInterval);
+        if (inputCode == Constants.NOT_A_CODE) return;
         callListenerOnPressAndCheckKeyboardLayoutChange(key, repeatCount);
         callListenerOnCodeInput(key, inputCode, mKeyX, mKeyY, SystemClock.uptimeMillis(), true);
+    }
+
+    /** Returns the code to send for a key repeat, or {@link Constants#NOT_A_CODE} to send nothing. */
+    static int getRepeatCode(final int code, final int repeatCount, final boolean deleteWords,
+            final int longpressTimeout, final int repeatInterval) {
+        if (code != KeyCode.DELETE || !deleteWords) return code;
+        // delete a word on the first repeat, then one per long press delay
+        final int repeatsPerWord = Math.max(1, longpressTimeout / repeatInterval);
+        return (repeatCount - 1) % repeatsPerWord == 0 ? KeyCode.DELETE_WORD : Constants.NOT_A_CODE;
     }
 
     private void startKeyRepeatTimer(final int repeatCount) {
