@@ -57,12 +57,14 @@ fun SnippetsScreen(
     SearchScreen(
         onClickBack = onClickBack,
         title = { Text(stringResource(R.string.snippets)) },
-        menu = listOf(
-            if (Snippets.hasKaomoji(snippets))
-                stringResource(R.string.snippets_remove_kaomoji) to { Snippets.removeKaomoji(ctx); savedCount++ }
-            else
-                stringResource(R.string.snippets_add_kaomoji) to { Snippets.addKaomoji(ctx); savedCount++ }
-        ),
+        menu = listOfNotNull(
+            if (Snippets.canAddKaomoji(snippets))
+                stringResource(R.string.snippets_add_kaomoji) to { Snippets.addKaomoji(ctx); savedCount += 1 }
+            else null,
+            if (Snippets.canRemoveKaomoji(snippets))
+                stringResource(R.string.snippets_remove_kaomoji) to { Snippets.removeKaomoji(ctx); savedCount += 1 }
+            else null,
+        ).ifEmpty { null },
         filteredItems = { term ->
             snippets.withIndex().filter { (_, s) ->
                 s.text.contains(term, true) || s.label?.contains(term, true) == true || s.shortcut?.startsWith(term, true) == true

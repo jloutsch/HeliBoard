@@ -44,7 +44,7 @@ class SnippetsTest {
 
     @Test fun `add skips blank and already saved text`() {
         assert(Snippets.add(context, "Best regards"))
-        assert(!Snippets.add(context, "Best regards"))
+        assert(!Snippets.add(context, "Best regards "))
         assert(!Snippets.add(context, "  "))
         assertEquals(listOf(Snippet("Best regards")), Snippets.get(context))
     }
@@ -63,13 +63,16 @@ class SnippetsTest {
     }
 
     @Test fun `kaomoji are added once and removed unless edited`() {
+        Snippets.save(context, listOf(Snippet(Snippets.KAOMOJI.first() + " "))) // like a copied clipboard snippet
         Snippets.addKaomoji(context)
         Snippets.addKaomoji(context)
-        assertEquals(Snippets.KAOMOJI, Snippets.get(context).map { it.text })
+        assertEquals(Snippets.KAOMOJI, Snippets.get(context).map { it.text.trim() })
         val edited = Snippet(Snippets.KAOMOJI.first(), shortcut = "shrug")
         Snippets.save(context, listOf(edited) + Snippets.get(context).drop(1))
+        assert(!Snippets.canAddKaomoji(Snippets.get(context)))
         Snippets.removeKaomoji(context)
         assertEquals(listOf(edited), Snippets.get(context))
-        assert(Snippets.hasKaomoji(Snippets.get(context)))
+        assert(!Snippets.canRemoveKaomoji(Snippets.get(context)))
+        assert(Snippets.canAddKaomoji(Snippets.get(context)))
     }
 }

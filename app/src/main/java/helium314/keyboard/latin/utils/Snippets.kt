@@ -37,7 +37,7 @@ object Snippets {
     /** Adds [text] at the end, unless it's blank or already saved. Returns whether it was added. */
     fun add(context: Context, text: String): Boolean {
         val snippets = get(context)
-        if (text.isBlank() || snippets.any { it.text == text }) return false
+        if (text.isBlank() || snippets.any { it.text.trim() == text.trim() }) return false
         save(context, snippets + Snippet(text))
         return true
     }
@@ -58,15 +58,23 @@ object Snippets {
 
     fun normalizeShortcut(shortcut: String) = shortcut.trim().lowercase(Locale.ROOT).ifEmpty { null }
 
-    fun hasKaomoji(snippets: List<Snippet>) = snippets.any { it.text in KAOMOJI }
+    // texts are compared trimmed, as copied clipboard snippets can have spaces around them
+    private fun missingKaomoji(snippets: List<Snippet>) = KAOMOJI.filter { k -> snippets.none { it.text.trim() == k } }
+
+    // kaomoji the user gave a label or shortcut are kept
+    private fun isRemovableKaomoji(snippet: Snippet) = snippet.text.trim() in KAOMOJI && snippet.label == null && snippet.shortcut == null
+
+    fun canAddKaomoji(snippets: List<Snippet>) = missingKaomoji(snippets).isNotEmpty()
+
+    fun canRemoveKaomoji(snippets: List<Snippet>) = snippets.any(::isRemovableKaomoji)
 
     fun addKaomoji(context: Context) {
         val snippets = get(context)
-        save(context, snippets + KAOMOJI.filter { k -> snippets.none { it.text == k } }.map { Snippet(it) })
+        save(context, snippets + missingKaomoji(snippets).map { Snippet(it) })
     }
 
     fun removeKaomoji(context: Context) {
-        save(context, get(context).filterNot { it.text in KAOMOJI && it.label == null && it.shortcut == null })
+        save(context, get(context).filterNot(::isRemovableKaomoji))
     }
 
     // Clipboard snippets used to be pinned clips with a shortcut. They are copied once, when there is no snippets pref yet
