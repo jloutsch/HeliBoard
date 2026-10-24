@@ -113,9 +113,12 @@ class Suggest(
             firstOccurrenceOfTypedWordInSuggestions,
             typedWordFirstOccurrenceWordInfo
         )
-        // a snippet takes the place of the auto-correction, so space keeps the typed shortcut and only a tap inserts the snippet
-        val snippets = if (typedWordString.isEmpty()) emptyList() else getClipboardSnippets(typedWordString)
-        val hasAutoCorrection = hasDictionaryAutoCorrection && snippets.isEmpty()
+        // a snippet takes the place of the auto-correction: space expands it if the setting is on, otherwise only a tap inserts it
+        val snippets = if (typedWordString.isEmpty()) emptyList()
+            else getClipboardSnippets(typedWordString).map { capitalize(it, capsMode, mDictionaryFacilitator.mainLocale) }
+        // not for resumed words, like auto-correction, so a reverted expansion stays reverted
+        val hasAutoCorrection = if (snippets.isEmpty()) hasDictionaryAutoCorrection
+            else Settings.getValues().mExpandSnippets && !wordComposer.isResumed
         val typedWordInfo = SuggestedWordInfo(typedWordString, "", SuggestedWordInfo.MAX_SCORE,
             SuggestedWordInfo.KIND_TYPED, typedWordFirstOccurrenceWordInfo?.mSourceDict ?: Dictionary.DICTIONARY_USER_TYPED,
             SuggestedWordInfo.NOT_AN_INDEX , SuggestedWordInfo.NOT_A_CONFIDENCE)

@@ -220,6 +220,10 @@
     <string name="snippets" tools:keep="@string/snippets">Snippets</string>
     <!-- Description for snippets preference -->
     <string name="snippets_summary">Saved text to insert from the snippets toolbar key, or by typing a shortcut</string>
+    <!-- Setting for replacing a snippet shortcut with the snippet text when typing a space or punctuation after it -->
+    <string name="expand_snippets">Expand snippet shortcuts</string>
+    <!-- Description for the setting expand_snippets -->
+    <string name="expand_snippets_summary">Replace a typed shortcut with its snippet when you type a space or punctuation. Backspace right after undoes it.</string>
     <!-- Shown in snippets screen if there are no snippets -->
     <string name="snippets_empty">Add text you use often. It can then be inserted from the snippets toolbar key, or by typing its shortcut.</string>
     <!-- Shown in the snippets panel of the keyboard if there are no snippets -->

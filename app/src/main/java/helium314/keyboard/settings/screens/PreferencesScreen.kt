@@ -81,6 +81,7 @@ fun PreferencesScreen(
         Settings.PREF_SHOW_DPAD_KEY,
         Settings.PREF_REMOVE_REDUNDANT_POPUPS,
         SettingsWithoutKey.SNIPPETS,
+        Settings.PREF_EXPAND_SNIPPETS,
         R.string.settings_category_clipboard_history,
         Settings.PREF_ENABLE_CLIPBOARD_HISTORY,
         if (clipboardHistoryEnabled) Settings.PREF_CLIPBOARD_HISTORY_RETENTION_TIME else null,
@@ -201,6 +202,9 @@ fun createPreferencesSettings(context: Context) = listOf(
             description = it.description,
             onClick = { SettingsDestination.navigateTo(SettingsDestination.Snippets) },
         ) { NextScreenIcon() }
+    },
+    Setting(context, Settings.PREF_EXPAND_SNIPPETS, R.string.expand_snippets, R.string.expand_snippets_summary) {
+        SwitchPreference(it, Defaults.PREF_EXPAND_SNIPPETS)
     },
     Setting(context, Settings.PREF_CLIPBOARD_USE_FILES, R.string.clipboard_history_files) {
         val ctx = LocalContext.current

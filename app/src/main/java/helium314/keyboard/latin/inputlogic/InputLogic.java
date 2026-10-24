@@ -1160,7 +1160,7 @@ public final class InputLogic {
         }
         // isComposingWord() may have changed since we stored wasComposing
         if (mWordComposer.isComposingWord()) {
-            if (settingsValues.mAutoCorrectEnabled && ! isInlineEmojiSearchAction()) {
+            if ((settingsValues.mAutoCorrectEnabled || willExpandSnippet(settingsValues, handler)) && ! isInlineEmojiSearchAction()) {
                 final String separator = shouldAvoidSendingCode ? LastComposedWord.NOT_A_SEPARATOR
                         : StringUtils.newSingleCodePointString(codePoint);
                 commitCurrentAutoCorrection(settingsValues, separator, handler);
@@ -2339,6 +2339,18 @@ public final class InputLogic {
      * @param settingsValues the current value of the settings.
      * @param separator the separator that's causing the commit to happen.
      */
+    /** Whether the typed word is a snippet shortcut that the separator expands, also with auto-correction off. */
+    private boolean willExpandSnippet(final SettingsValues settingsValues, final LatinIME.UIHandler handler) {
+        if (!settingsValues.mExpandSnippets) return false;
+        // the suggestions may not be updated yet for the last typed letter
+        if (handler.hasPendingUpdateSuggestions()) {
+            handler.cancelUpdateSuggestionStrip();
+            performUpdateSuggestionStripSync(settingsValues, SuggestedWords.INPUT_STYLE_TYPING);
+        }
+        final SuggestedWordInfo autoCorrection = mWordComposer.getAutoCorrectionOrNull();
+        return autoCorrection != null && autoCorrection.isKindOf(SuggestedWordInfo.KIND_CLIPBOARD_SNIPPET);
+    }
+
     private void commitCurrentAutoCorrection(final SettingsValues settingsValues,
             final String separator, final LatinIME.UIHandler handler) {
         // Complete any pending suggestions query first
@@ -2426,8 +2438,11 @@ public final class InputLogic {
                     + "Connection.commitText");
             startTimeMillis = SystemClock.elapsedRealtime();
         }
-        // Add the word to the user history dictionary
-        performAdditionToUserHistoryDictionary(settingsValues, chosenWord, ngramContext);
+        // Add the word to the user history dictionary, but not an expanded snippet, like when it's picked
+        final SuggestedWordInfo autoCorrection = mWordComposer.getAutoCorrectionOrNull();
+        if (commitType != LastComposedWord.COMMIT_TYPE_DECIDED_WORD || autoCorrection == null
+                || !autoCorrection.isKindOf(SuggestedWordInfo.KIND_CLIPBOARD_SNIPPET))
+            performAdditionToUserHistoryDictionary(settingsValues, chosenWord, ngramContext);
         if (DebugFlags.DEBUG_ENABLED) {
             long runTimeMillis = SystemClock.elapsedRealtime() - startTimeMillis;
             Log.d(TAG, "commitChosenWord() : " + runTimeMillis + " ms to run "
