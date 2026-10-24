@@ -255,7 +255,8 @@ class ClipboardHistoryView @JvmOverloads constructor(
 
     override fun onKeyUp(clipId: Long) {
         if (isShowingSnippets) {
-            keyboardActionListener.onTextInput(clipboardAdapter.snippets?.getOrNull(clipId.toInt())?.text)
+            // trimmed like a snippet inserted by its shortcut
+            keyboardActionListener.onTextInput(clipboardAdapter.snippets?.getOrNull(clipId.toInt())?.text?.trim())
         } else {
             val clipContent = clipboardHistoryManager.getHistoryEntryContent(clipId)
             if (clipContent?.filename != null) keyboardActionListener.onContent(clipContent.getContentInfo(context))
