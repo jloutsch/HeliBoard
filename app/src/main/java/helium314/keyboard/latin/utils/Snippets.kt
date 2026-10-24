@@ -93,6 +93,47 @@ object Snippets {
         return snippets
     }
 
+    /**
+     * New snippets from SwiftKey's clipboard export (clipboard_sync.json), oldest first, for adding after [snippets].
+     * Null if [json] is not such an export.
+     */
+    fun fromSwiftKey(snippets: List<Snippet>, json: String): SwiftKeyImport? {
+        val export = try {
+            swiftKeyJson.decodeFromString<SwiftKeyClipboard>(json)
+        } catch (e: IllegalArgumentException) { // also thrown for invalid JSON and missing fields
+            return null
+        }
+        val added = mutableListOf<Snippet>()
+        var empty = 0; var saved = 0; var invalidShortcut = 0; var usedShortcut = 0
+        export.shortcuts.sortedBy { it.time ?: 0 }.forEach { entry ->
+            val text = entry.text
+            val shortcut = entry.shortcut?.let { normalizeShortcut(it) }
+            val all = snippets + added
+            when {
+                text.isNullOrBlank() -> empty++
+                // importing the same file again adds nothing
+                all.any { it.text.trim() == text.trim() && it.shortcut == shortcut } -> saved++
+                else -> when (shortcutError(all, -1, shortcut.orEmpty())) {
+                    ShortcutError.INVALID_CHARACTERS -> invalidShortcut++
+                    ShortcutError.IN_USE -> usedShortcut++
+                    null -> added.add(Snippet(text, shortcut = shortcut))
+                }
+            }
+        }
+        return SwiftKeyImport(added, empty, saved, invalidShortcut, usedShortcut)
+    }
+
+    class SwiftKeyImport(val added: List<Snippet>, val empty: Int, val saved: Int, val invalidShortcut: Int, val usedShortcut: Int)
+
+    // other fields (id, pinned, last_modified, deleted_items) are not needed
+    @Serializable
+    private class SwiftKeyClipboard(val shortcuts: List<SwiftKeyShortcut>)
+
+    @Serializable
+    private class SwiftKeyShortcut(val text: String? = null, val shortcut: String? = null, val time: Long? = null)
+
+    private val swiftKeyJson = Json { ignoreUnknownKeys = true }
+
     // letters and digits only, so a shortcut is always a single word
     private val SHORTCUT_REGEX = Regex("[\\p{L}\\p{N}]+")
 
