@@ -17,6 +17,7 @@ import helium314.keyboard.latin.ClipboardHistoryManager
 import helium314.keyboard.latin.R
 import helium314.keyboard.latin.common.ColorType
 import helium314.keyboard.latin.settings.Settings
+import helium314.keyboard.latin.utils.Snippet
 
 class ClipboardAdapter(
        val clipboardLayoutParams: ClipboardLayoutParams,
@@ -24,6 +25,8 @@ class ClipboardAdapter(
 ) : RecyclerView.Adapter<ClipboardAdapter.ViewHolder>() {
 
     var clipboardHistoryManager: ClipboardHistoryManager? = null
+    // shown instead of the clipboard history in the snippets panel
+    var snippets: List<Snippet>? = null
 
     var pinnedIconResId = 0
     var itemBackgroundId = 0
@@ -38,12 +41,14 @@ class ClipboardAdapter(
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        holder.setContent(getItem(position))
+        val snippet = snippets?.get(position)
+        if (snippet != null) holder.setSnippet(snippet, position)
+        else holder.setContent(getItem(position))
     }
 
     private fun getItem(position: Int) = clipboardHistoryManager?.getHistoryEntry(position)
 
-    override fun getItemCount() = clipboardHistoryManager?.getHistorySize() ?: 0
+    override fun getItemCount() = snippets?.size ?: clipboardHistoryManager?.getHistorySize() ?: 0
 
     inner class ViewHolder(
             view: View
@@ -90,6 +95,14 @@ class ClipboardAdapter(
             contentTextView.visibility = if (contentTextView.text.isNullOrEmpty()) View.GONE else View.VISIBLE
         }
 
+        fun setSnippet(snippet: Snippet, position: Int) {
+            itemView.tag = position.toLong()
+            contentTextView.text = snippet.label ?: snippet.text.take(1000)
+            pinnedIconView.visibility = View.GONE
+            contentImageView.visibility = View.GONE
+            contentTextView.visibility = View.VISIBLE
+        }
+
         @SuppressLint("ClickableViewAccessibility")
         override fun onTouch(view: View, event: MotionEvent): Boolean {
             if (event.actionMasked == MotionEvent.ACTION_DOWN) {
@@ -103,7 +116,7 @@ class ClipboardAdapter(
         }
 
         override fun onLongClick(view: View): Boolean {
-            clipboardHistoryManager?.toggleClipPinned(view.tag as Long)
+            if (snippets == null) clipboardHistoryManager?.toggleClipPinned(view.tag as Long)
             return true
         }
     }

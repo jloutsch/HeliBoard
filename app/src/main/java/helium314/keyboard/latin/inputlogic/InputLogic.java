@@ -41,6 +41,7 @@ import helium314.keyboard.latin.dictionary.DictionaryFactory;
 import helium314.keyboard.latin.LastComposedWord;
 import helium314.keyboard.latin.LatinIME;
 import helium314.keyboard.latin.NgramContext;
+import helium314.keyboard.latin.R;
 import helium314.keyboard.latin.RichInputConnection;
 import helium314.keyboard.latin.SingleDictionaryFacilitator;
 import helium314.keyboard.latin.Suggest;
@@ -793,6 +794,14 @@ public final class InputLogic {
             case KeyCode.CLIPBOARD_CLEAR_HISTORY:
                 mLatinIME.getClipboardHistoryManager().clearHistory();
                 break;
+            case KeyCode.SNIPPET_SAVE:
+                final CharSequence selectedText = mConnection.hasSelection() ? mConnection.getSelectedText(0) : null;
+                final String snippetText = selectedText != null
+                        ? selectedText.toString()
+                        : mLatinIME.getClipboardHistoryManager().getPrimaryClipIfText();
+                final boolean saved = snippetText != null && Snippets.INSTANCE.add(mLatinIME, snippetText);
+                KeyboardSwitcher.getInstance().showToast(mLatinIME.getString(saved ? R.string.snippet_saved : R.string.snippet_not_saved), true);
+                break;
             case KeyCode.CLIPBOARD_CUT:
                 if (mConnection.hasSelection()) {
                     mConnection.copyText(true);
@@ -875,7 +884,7 @@ public final class InputLogic {
                 // {@link KeyboardSwitcher#onEvent(Event)}, or {@link #onPressKey(int,int,boolean)} and {@link #onReleaseKey(int,boolean)}.
                 // We need to switch to the shortcut IME. This is handled by LatinIME since the
                 // input logic has no business with IME switching.
-            case KeyCode.EMOJI, KeyCode.TOGGLE_ONE_HANDED_MODE, KeyCode.SWITCH_ONE_HANDED_MODE, KeyCode.TOGGLE_FLOATING_WINDOW,
+            case KeyCode.EMOJI, KeyCode.SNIPPETS, KeyCode.TOGGLE_ONE_HANDED_MODE, KeyCode.SWITCH_ONE_HANDED_MODE, KeyCode.TOGGLE_FLOATING_WINDOW,
                  KeyCode.KEY_REPEAT: // can be configured on main layout using !code/-11000, and we shouldn't crash on this in debug mode
                 break;
             default:

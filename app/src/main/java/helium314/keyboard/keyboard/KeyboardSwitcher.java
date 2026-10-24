@@ -224,6 +224,10 @@ public final class KeyboardSwitcher {
         mState.setLayout(LayoutDirective.Utility.CLIPBOARD);
     }
 
+    public void setSnippetsKeyboard() {
+        mState.setLayout(LayoutDirective.Utility.SNIPPETS);
+    }
+
     public boolean isImeSuppressedByHardwareKeyboard(
             @NonNull final SettingsValues settingsValues,
             @NonNull final KeyboardSwitchState toggleState) {
@@ -367,10 +371,13 @@ public final class KeyboardSwitcher {
         // Reload the entire keyboard, and switch to the previous layout
         final boolean wasEmoji = isShowingEmojiPalettes();
         final boolean wasClipboard = isShowingClipboardHistory();
+        final boolean wasSnippets = wasClipboard && mClipboardHistoryView.isShowingSnippets();
         loadKeyboard(mLatinIME.getCurrentInputEditorInfo(), Settings.getValues(),
                 mLatinIME.getCurrentAutoCapsState(), mLatinIME.getCurrentRecapitalizeState(), null);
         if (wasEmoji) {
             setEmojiKeyboard();
+        } else if (wasSnippets) {
+            setSnippetsKeyboard();
         } else if (wasClipboard) {
             setClipboardKeyboard();
         }
@@ -659,6 +666,19 @@ public final class KeyboardSwitcher {
             if (DEBUG_ACTION) {
                 Log.d(TAG, "setClipboardKeyboard");
             }
+            showClipboardView(false);
+        }
+
+        @Override
+        public void setSnippetsKeyboard() {
+            if (DEBUG_ACTION) {
+                Log.d(TAG, "setSnippetsKeyboard");
+            }
+            showClipboardView(true);
+        }
+
+        // the snippets panel is the clipboard view showing snippets instead of clipboard history
+        private void showClipboardView(final boolean snippets) {
             mMainKeyboardFrame.setVisibility(View.VISIBLE);
             // The visibility of {@link #mKeyboardView} must be aligned with {@link #MainKeyboardFrame}.
             // @see #getVisibleKeyboardView() and
@@ -671,7 +691,7 @@ public final class KeyboardSwitcher {
             mClipboardStripScrollView.setVisibility(View.VISIBLE);
             mEmojiPalettesView.setVisibility(View.GONE);
             mClipboardHistoryView.startClipboardHistory(mLatinIME.getClipboardHistoryManager(), mKeyboardView.getKeyVisualAttribute(),
-                mLatinIME.getCurrentInputEditorInfo(), mLatinIME.mKeyboardActionListener);
+                mLatinIME.getCurrentInputEditorInfo(), mLatinIME.mKeyboardActionListener, snippets);
             mClipboardHistoryView.setVisibility(View.VISIBLE);
         }
 
