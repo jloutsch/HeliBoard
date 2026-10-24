@@ -17,6 +17,7 @@ import helium314.keyboard.latin.SuggestedWords.SuggestedWordInfo.KIND_WHITELIST
 import helium314.keyboard.latin.common.ComposedData
 import helium314.keyboard.latin.common.Constants
 import helium314.keyboard.latin.common.InputPointers
+import helium314.keyboard.latin.common.CoordinateUtils
 import helium314.keyboard.latin.common.StringUtils
 import helium314.keyboard.latin.database.ClipboardDao
 import helium314.keyboard.latin.dictionary.Dictionary
@@ -616,12 +617,17 @@ class SuggestTest {
         assertEquals("because", result.getInfo(SuggestedWords.INDEX_OF_AUTO_CORRECTION).mWord)
         assertEquals("Because", getSuggestedWords(false, "Bc", CapsMode.OFF).getInfo(SuggestedWords.INDEX_OF_AUTO_CORRECTION).mWord)
         assertEquals("BECAUSE", getSuggestedWords(false, "BC", CapsMode.OFF).getInfo(SuggestedWords.INDEX_OF_AUTO_CORRECTION).mWord)
+        // reverted expansion
+        assert(!getSuggestedWords(false, "bc", CapsMode.OFF, resumed = true).mWillAutoCorrect)
     }
 
-    private fun getSuggestedWords(gesture: Boolean, typedWord: String, capsMode: CapsMode): SuggestedWords {
+    private fun getSuggestedWords(gesture: Boolean, typedWord: String, capsMode: CapsMode, resumed: Boolean = false): SuggestedWords {
         val wc = WordComposer()
         if (gesture) wc.setBatchInputPointers(InputPointers(1))
-        if (typedWord.isNotEmpty()) {
+        if (resumed) { // like after reverting an auto-correction, or moving the cursor into a word
+            val codePoints = StringUtils.toCodePointArray(typedWord)
+            wc.setComposingWord(codePoints, CoordinateUtils.newCoordinateArray(codePoints.size, Constants.NOT_A_COORDINATE, Constants.NOT_A_COORDINATE))
+        } else if (typedWord.isNotEmpty()) {
             StringUtils.toCodePointArray(typedWord).forEach {
                 val e = Event.createEventForCodePointFromAlreadyTypedText(it, Constants.NOT_A_COORDINATE, Constants.NOT_A_COORDINATE)
                 wc.applyProcessedEvent(wc.processEvent(e))
