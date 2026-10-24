@@ -61,6 +61,7 @@ import helium314.keyboard.latin.suggestions.SuggestionStripViewAccessor;
 import helium314.keyboard.latin.utils.AsyncResultHolder;
 import helium314.keyboard.latin.utils.DictionaryInfoUtils;
 import helium314.keyboard.latin.utils.GestureDataGatheringKt;
+import helium314.keyboard.latin.utils.Snippets;
 import helium314.keyboard.latin.utils.InputTypeUtils;
 import helium314.keyboard.latin.utils.IntentUtils;
 import helium314.keyboard.latin.utils.Log;
@@ -107,7 +108,7 @@ public final class InputLogic {
     }
 
     private Suggest createSuggest(DictionaryFacilitator facilitator) {
-        return new Suggest(facilitator, word -> mLatinIME.getClipboardHistoryManager().getSnippetsForShortcut(word));
+        return new Suggest(facilitator, word -> Snippets.INSTANCE.textsForShortcut(mLatinIME, word));
     }
 
     public LastComposedWord mLastComposedWord = LastComposedWord.NOT_A_COMPOSED_WORD;

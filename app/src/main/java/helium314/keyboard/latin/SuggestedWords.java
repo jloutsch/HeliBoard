@@ -255,7 +255,7 @@ public class SuggestedWords {
         // in java for re-correction)
         public static final int KIND_RESUMED = 9;
         public static final int KIND_OOV_CORRECTION = 10; // Most probable string correction
-        public static final int KIND_CLIPBOARD_SNIPPET = 11; // Pinned clip whose shortcut was typed
+        public static final int KIND_CLIPBOARD_SNIPPET = 11; // Snippet whose shortcut was typed
 
         public static final int KIND_FLAG_POSSIBLY_OFFENSIVE = 0x80000000;
         public static final int KIND_FLAG_EXACT_MATCH = 0x40000000;

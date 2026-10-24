@@ -22,6 +22,8 @@ import helium314.keyboard.latin.database.ClipboardDao
 import helium314.keyboard.latin.dictionary.Dictionary
 import helium314.keyboard.latin.settings.Settings
 import helium314.keyboard.latin.settings.SettingsValuesForSuggestion
+import helium314.keyboard.latin.utils.Snippet
+import helium314.keyboard.latin.utils.Snippets
 import helium314.keyboard.latin.utils.SuggestionResults
 import helium314.keyboard.latin.utils.prefs
 import org.junit.runner.RunWith
@@ -592,25 +594,16 @@ class SuggestTest {
         assertEquals(listOf("bur", "BUR", "BUT", "BIT", "BUY", "😢", "BUTTER"), result4.mSuggestedWordInfoList.map { it.mWord })
     }
 
-    @Test fun `clipboard snippet is shown in the center and blocks autocorrect`() {
+    @Test fun `snippet is shown in the center and blocks autocorrect`() {
         enableAutocorrect(confidenceModest)
         tapTypingSuggestions = suggestionResults(listOf(suggestion("sign", Int.MAX_VALUE), suggestion("sigh", 1500000)))
         assert(getSuggestedWords(false, "sig", CapsMode.OFF).mWillAutoCorrect) // without snippet
 
-        assert(ClipboardDao.getInstance(latinIME)!!.saveSnippet(null, "Best regards", "SIG"))
+        Snippets.save(latinIME, listOf(Snippet("Best regards", shortcut = "sig")))
         val result = getSuggestedWords(false, "Sig", CapsMode.OFF)
         assert(!result.mWillAutoCorrect)
         assertEquals("Best regards", result.getInfo(SuggestedWords.INDEX_OF_AUTO_CORRECTION).mWord)
         assert(result.getInfo(SuggestedWords.INDEX_OF_AUTO_CORRECTION).isKindOf(SuggestedWordInfo.KIND_CLIPBOARD_SNIPPET))
-    }
-
-    @Test fun `unpinned clip with shortcut is not suggested`() {
-        val dao = ClipboardDao.getInstance(latinIME)!!
-        assert(dao.saveSnippet(null, "Best regards", "sig"))
-        dao.togglePinned(dao.getAll().single().id)
-        tapTypingSuggestions = suggestionResults(listOf(suggestion("sign", 1500000)))
-        val result = getSuggestedWords(false, "sig", CapsMode.OFF)
-        assert(result.mSuggestedWordInfoList.none { it.isKindOf(SuggestedWordInfo.KIND_CLIPBOARD_SNIPPET) })
     }
 
     private fun getSuggestedWords(gesture: Boolean, typedWord: String, capsMode: CapsMode): SuggestedWords {

@@ -37,7 +37,7 @@ import kotlin.math.min
  */
 class Suggest(
     private val mDictionaryFacilitator: DictionaryFacilitator,
-    // returns texts of clipboard snippets whose shortcut is the given word
+    // returns texts of snippets whose shortcut is the given word
     private val getClipboardSnippets: (String) -> List<String> = { emptyList() },
 ) {
     private var mAutoCorrectionThreshold = 0f

@@ -19,10 +19,7 @@ import helium314.keyboard.latin.utils.ChecksumCalculator
 import helium314.keyboard.latin.utils.Log
 import helium314.keyboard.latin.utils.prefs
 import java.io.File
-import java.util.Locale
 import kotlin.collections.joinToString
-
-enum class ShortcutError { INVALID_CHARACTERS, IN_USE }
 
 /** Class providing cached access to the clipboard table */
 // currently we should not need to worry about synchronizing access (though maybe we could addClip in a coroutine, then it might be relevant)
@@ -167,7 +164,7 @@ class ClipboardDao private constructor(private val db: Database) {
         val entry = cache.first { it.id == id }
         entry.isPinned = !entry.isPinned
         entry.timeStamp = System.currentTimeMillis()
-        if (!entry.isPinned) entry.shortcut = null // snippets are pinned clips, an unpinned clip would block its shortcut invisibly
+        if (!entry.isPinned) entry.shortcut = null // only pinned clips were snippets
         if (listener != null) {
             val oldPos = cache.indexOf(entry)
             cache.sort()
@@ -181,46 +178,6 @@ class ClipboardDao private constructor(private val db: Database) {
         cv.put(COLUMN_TIMESTAMP, entry.timeStamp)
         cv.put(COLUMN_SHORTCUT, entry.shortcut)
         db.writableDatabase.update(TABLE, cv, "$COLUMN_ID = ${entry.id}", null)
-    }
-
-    /** Returns why [shortcut] can't be used for the clip with [id], or null if it can. Blank removes the shortcut, so it's valid. */
-    fun getShortcutError(id: Long, shortcut: String): ShortcutError? = synchronized(this) {
-        val normalized = normalizeShortcut(shortcut) ?: return@synchronized null
-        if (!normalized.matches(SHORTCUT_REGEX)) return@synchronized ShortcutError.INVALID_CHARACTERS
-        if (cache.any { it.shortcut == normalized && it.id != id }) return@synchronized ShortcutError.IN_USE
-        null
-    }
-
-    /** [shortcut] in stored form, or null if it's missing or not allowed, e.g. from a backup */
-    fun getValidShortcut(shortcut: String?): String? =
-        if (shortcut == null || getShortcutError(-1, shortcut) != null) null else normalizeShortcut(shortcut)
-
-    /** Saves [text] and [shortcut] (blank removes it), as new pinned clip if [id] is null. Returns false if text is blank or [getShortcutError] reports an error. */
-    fun saveSnippet(id: Long?, text: String, shortcut: String): Boolean = synchronized(this) {
-        if (text.isBlank() || getShortcutError(id ?: -1, shortcut) != null) return@synchronized false
-        val normalized = normalizeShortcut(shortcut)
-        if (id == null) {
-            insertNewEntry(System.currentTimeMillis(), true, text, null, null, null, normalized)
-            return@synchronized true
-        }
-        val entry = get(id)
-        entry.text = text
-        entry.shortcut = normalized
-        val cv = ContentValues(2)
-        cv.put(COLUMN_TEXT, text)
-        cv.put(COLUMN_SHORTCUT, normalized)
-        db.writableDatabase.update(TABLE, cv, "$COLUMN_ID = $id", null)
-        true
-    }
-
-    fun deleteClip(id: Long) {
-        delete(listOf(get(id)))
-    }
-
-    /** Pinned text clips whose shortcut matches [word], ignoring case. Called from the suggestion thread, hence the lock. */
-    fun getSnippetsForShortcut(word: String): List<ClipboardHistoryEntry> {
-        val normalized = normalizeShortcut(word) ?: return emptyList()
-        return synchronized(this) { cache.filter { it.isPinned && it.shortcut == normalized && !it.text.isNullOrBlank() } }
     }
 
     // RecyclerView initiates this, so we don't call listener (or we'll get an IndexOutOfRangeException from RecyclerView)
@@ -305,7 +262,7 @@ class ClipboardDao private constructor(private val db: Database) {
         private const val COLUMN_TEXT = "TEXT" // we could enforce unique text, but that's only necessary if we can drop the cache (later)
         private const val COLUMN_FILE = "FILE" // path relative to files dir
         private const val COLUMN_MIME_TYPE = "MIME_TYPE" // for files, actually a list of mime types according to clipboard description
-        private const val COLUMN_SHORTCUT = "SHORTCUT" // lowercase, see normalizeShortcut
+        private const val COLUMN_SHORTCUT = "SHORTCUT" // only read to copy old clipboard snippets, see Snippets
         const val CREATE_TABLE = """
             CREATE TABLE $TABLE (
                 $COLUMN_ID INTEGER PRIMARY KEY,
@@ -324,11 +281,6 @@ class ClipboardDao private constructor(private val db: Database) {
             }
             if (!hasColumn) db.execSQL("ALTER TABLE $TABLE ADD COLUMN $COLUMN_SHORTCUT TEXT")
         }
-
-        // letters and digits only, so a shortcut is always a single word
-        private val SHORTCUT_REGEX = Regex("[\\p{L}\\p{N}]+")
-
-        private fun normalizeShortcut(shortcut: String) = shortcut.trim().lowercase(Locale.ROOT).ifEmpty { null }
 
         private var instance: ClipboardDao? = null
         lateinit var clipFilesDir: File
