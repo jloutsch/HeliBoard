@@ -114,5 +114,6 @@ class SnippetsTest {
         assertNull(Snippets.fromSwiftKey(emptyList(), """{"deleted_items": []}"""))
         assertNull(Snippets.fromSwiftKey(emptyList(), "# Your SwiftKey vocabulary\nhello"))
         assertEquals(emptyList(), Snippets.fromSwiftKey(emptyList(), """{"shortcuts": []}""")!!.added)
+        assertEquals(listOf(Snippet("a")), Snippets.fromSwiftKey(emptyList(), "﻿{\"shortcuts\": [{\"text\": \"a\"}]}")!!.added)
     }
 }

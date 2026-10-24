@@ -17,6 +17,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -126,7 +127,8 @@ fun swiftKeyVocabularyPicker(locale: Locale?): ManagedActivityResultLauncher<Int
 fun swiftKeySnippetsPicker(onImported: () -> Unit): ManagedActivityResultLauncher<Intent, ActivityResult> {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
-    var message: String? by remember { mutableStateOf(null) }
+    // saveable, as the snippets are already saved when the activity is recreated on rotation
+    var message: String? by rememberSaveable { mutableStateOf(null) }
     val picker = filePicker { uri ->
         scope.launch {
             val result = withContext(Dispatchers.IO) {

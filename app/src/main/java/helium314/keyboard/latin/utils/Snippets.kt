@@ -99,7 +99,7 @@ object Snippets {
      */
     fun fromSwiftKey(snippets: List<Snippet>, json: String): SwiftKeyImport? {
         val export = try {
-            swiftKeyJson.decodeFromString<SwiftKeyClipboard>(json)
+            swiftKeyJson.decodeFromString<SwiftKeyClipboard>(json.trimStart('﻿'))
         } catch (e: IllegalArgumentException) { // also thrown for invalid JSON and missing fields
             return null
         }
