@@ -244,6 +244,20 @@
     <string name="snippets_add_kaomoji">Add kaomoji</string>
     <!-- Menu item in snippets screen -->
     <string name="snippets_remove_kaomoji">Remove kaomoji</string>
+    <!-- Menu item in snippets screen to import the clipboard shortcuts SwiftKey exports as clipboard_sync.json -->
+    <string name="snippets_import_swiftkey">Import from SwiftKey</string>
+    <!-- Error when the selected file is not a SwiftKey clipboard export -->
+    <string name="snippets_import_wrong_file">This is not a SwiftKey clipboard file (clipboard_sync.json). Nothing was imported.</string>
+    <!-- Result of importing SwiftKey clipboard shortcuts. %d is the number of added snippets -->
+    <string name="snippets_import_done">Snippets imported: %d</string>
+    <!-- Line in the import result. %d is the number of skipped entries -->
+    <string name="snippets_import_skipped_saved">Skipped, already saved: %d</string>
+    <!-- Line in the import result. %d is the number of skipped entries -->
+    <string name="snippets_import_skipped_used">Skipped, shortcut used by another snippet: %d</string>
+    <!-- Line in the import result. %d is the number of skipped entries -->
+    <string name="snippets_import_skipped_invalid">Skipped, shortcut isn\'t only letters and digits: %d</string>
+    <!-- Line in the import result. %d is the number of skipped entries -->
+    <string name="snippets_import_skipped_empty">Skipped, no text: %d</string>
     <!-- Description of the button in the snippets panel that saves the selected text, or the clipboard text if nothing is selected -->
     <string name="snippet_save">Save selection or clipboard as snippet</string>
     <!-- Toast after saving a snippet from the keyboard -->

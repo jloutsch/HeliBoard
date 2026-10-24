@@ -40,7 +40,7 @@ import helium314.keyboard.latin.common.LocaleUtils.localizedDisplayName
 import helium314.keyboard.settings.DropDownField
 import helium314.keyboard.settings.SearchScreen
 import helium314.keyboard.settings.dialogs.ThreeButtonAlertDialog
-import helium314.keyboard.settings.dialogs.swiftKeyVocabularyIntent
+import helium314.keyboard.settings.dialogs.swiftKeyFileIntent
 import helium314.keyboard.settings.dialogs.swiftKeyVocabularyPicker
 import java.util.Locale
 
@@ -97,7 +97,7 @@ fun PersonalDictionaryScreen(
         modifier = Modifier.wrapContentSize(Alignment.BottomEnd).padding(all = 12.dp)
             .then(Modifier.safeDrawingPadding())
     ) {
-        ExtendedFloatingActionButton(onClick = { swiftKeyPicker.launch(swiftKeyVocabularyIntent(ctx)) }) {
+        ExtendedFloatingActionButton(onClick = { swiftKeyPicker.launch(swiftKeyFileIntent(ctx)) }) {
             Text(stringResource(R.string.import_swiftkey_vocabulary))
         }
         ExtendedFloatingActionButton(

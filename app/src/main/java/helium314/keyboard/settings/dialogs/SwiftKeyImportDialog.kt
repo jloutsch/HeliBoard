@@ -17,6 +17,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -31,6 +32,7 @@ import helium314.keyboard.latin.dictionary.DictionaryFactory
 import helium314.keyboard.latin.utils.DictionaryInfoUtils
 import helium314.keyboard.latin.utils.IntentUtils
 import helium314.keyboard.latin.utils.Log
+import helium314.keyboard.latin.utils.Snippets
 import helium314.keyboard.latin.utils.SwiftKeyVocabulary
 import helium314.keyboard.settings.filePicker
 import helium314.keyboard.settings.screens.getLocaleDisplayNameForUserDictSettings
@@ -40,11 +42,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.Locale
 
-// not only text/plain, as cloud storage apps don't always report it for .txt files (content is checked anyway)
-fun swiftKeyVocabularyIntent(context: Context): Intent =
+// any type, as cloud storage apps don't always report text/plain or application/json (content is checked anyway)
+fun swiftKeyFileIntent(context: Context): Intent =
     IntentUtils.getResolvableTypeIntent(context, "*/*").setAction(Intent.ACTION_OPEN_DOCUMENT)
 
 /** Picker for SwiftKey's vocabulary.txt, the new words are added to the personal dictionary for [locale]. */
@@ -116,6 +119,45 @@ fun swiftKeyVocabularyPicker(locale: Locale?): ManagedActivityResultLauncher<Int
             )
         }
     }
+    return picker
+}
+
+/** Picker for SwiftKey's clipboard export, the shortcuts are added to the snippets. [onImported] is called after saving. */
+@Composable
+fun swiftKeySnippetsPicker(onImported: () -> Unit): ManagedActivityResultLauncher<Intent, ActivityResult> {
+    val ctx = LocalContext.current
+    val scope = rememberCoroutineScope()
+    // saveable, as the snippets are already saved when the activity is recreated on rotation
+    var message: String? by rememberSaveable { mutableStateOf(null) }
+    val picker = filePicker { uri ->
+        scope.launch {
+            val result = withContext(Dispatchers.IO) {
+                try {
+                    val text = ctx.contentResolver.openInputStream(uri)?.use { SwiftKeyVocabulary.readText(it) }
+                    text?.let { Snippets.fromSwiftKey(Snippets.get(ctx), it) }
+                } catch (e: Exception) {
+                    Log.w(TAG, "could not read SwiftKey clipboard", e)
+                    null
+                }
+            }
+            if (result == null) {
+                message = ctx.getString(R.string.snippets_import_wrong_file)
+                return@launch
+            }
+            if (result.added.isNotEmpty()) {
+                Snippets.save(ctx, Snippets.get(ctx) + result.added)
+                onImported()
+            }
+            message = listOfNotNull(
+                ctx.getString(R.string.snippets_import_done, result.added.size),
+                result.saved.takeIf { it > 0 }?.let { ctx.getString(R.string.snippets_import_skipped_saved, it) },
+                result.usedShortcut.takeIf { it > 0 }?.let { ctx.getString(R.string.snippets_import_skipped_used, it) },
+                result.invalidShortcut.takeIf { it > 0 }?.let { ctx.getString(R.string.snippets_import_skipped_invalid, it) },
+                result.empty.takeIf { it > 0 }?.let { ctx.getString(R.string.snippets_import_skipped_empty, it) },
+            ).joinToString("\n")
+        }
+    }
+    message?.let { InfoDialog(it) { message = null } }
     return picker
 }
 

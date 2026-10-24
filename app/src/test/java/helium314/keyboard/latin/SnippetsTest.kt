@@ -75,4 +75,45 @@ class SnippetsTest {
         assert(!Snippets.canRemoveKaomoji(Snippets.get(context)))
         assert(Snippets.canAddKaomoji(Snippets.get(context)))
     }
+
+    // made-up export in the format of SwiftKey's clipboard_sync.json, unknown fields and deleted_items are ignored
+    private val swiftKeyExport = """
+        {"shortcuts": [
+          {"id": "a", "text": "Second", "pinned": false, "time": 2000, "shortcut": "two", "last_modified": 2000, "extra": 1},
+          {"id": "b", "text": "First", "pinned": true, "time": 1000, "shortcut": "One", "last_modified": 1000},
+          {"id": "c", "text": "  ", "time": 3000, "shortcut": "blank"},
+          {"id": "d", "text": "Invalid", "time": 4000, "shortcut": "two words"},
+          {"id": "e", "text": "Same shortcut", "time": 5000, "shortcut": "ONE"},
+          {"id": "f", "text": "No shortcut", "time": 6000},
+          {"id": "g", "text": "Empty shortcut", "time": 7000, "shortcut": ""},
+          {"id": "h", "text": "Used by existing", "time": 8000, "shortcut": "sig"}
+        ],
+        "deleted_items": [{"id": "x", "deleted_at": 9000}]}
+    """
+
+    @Test fun `SwiftKey export is imported oldest first, skipping what can't be added`() {
+        val existing = listOf(Snippet("Best regards", shortcut = "sig"))
+        val result = Snippets.fromSwiftKey(existing, swiftKeyExport)!!
+        val expected = listOf(
+            Snippet("First", shortcut = "one"), Snippet("Second", shortcut = "two"),
+            Snippet("No shortcut"), Snippet("Empty shortcut"),
+        )
+        assertEquals(expected, result.added)
+        assertEquals(1, result.empty)
+        assertEquals(1, result.invalidShortcut)
+        assertEquals(2, result.usedShortcut) // "ONE" from the file, "sig" from existing snippets
+        assertEquals(0, result.saved)
+
+        val again = Snippets.fromSwiftKey(existing + result.added, swiftKeyExport)!!
+        assertEquals(emptyList(), again.added)
+        assertEquals(4, again.saved)
+    }
+
+    @Test fun `SwiftKey import rejects other files`() {
+        assertNull(Snippets.fromSwiftKey(emptyList(), "not json"))
+        assertNull(Snippets.fromSwiftKey(emptyList(), """{"deleted_items": []}"""))
+        assertNull(Snippets.fromSwiftKey(emptyList(), "# Your SwiftKey vocabulary\nhello"))
+        assertEquals(emptyList(), Snippets.fromSwiftKey(emptyList(), """{"shortcuts": []}""")!!.added)
+        assertEquals(listOf(Snippet("a")), Snippets.fromSwiftKey(emptyList(), "﻿{\"shortcuts\": [{\"text\": \"a\"}]}")!!.added)
+    }
 }

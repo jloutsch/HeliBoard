@@ -39,6 +39,8 @@ import helium314.keyboard.latin.utils.Snippet
 import helium314.keyboard.latin.utils.Snippets
 import helium314.keyboard.settings.SearchScreen
 import helium314.keyboard.settings.dialogs.ThreeButtonAlertDialog
+import helium314.keyboard.settings.dialogs.swiftKeyFileIntent
+import helium314.keyboard.settings.dialogs.swiftKeySnippetsPicker
 
 @Composable
 fun SnippetsScreen(
@@ -54,6 +56,7 @@ fun SnippetsScreen(
     }
     // index of the snippet being edited, snippets.size for a new one
     var editIndex: Int? by remember { mutableStateOf(null) }
+    val swiftKeyPicker = swiftKeySnippetsPicker { savedCount += 1 }
     SearchScreen(
         onClickBack = onClickBack,
         title = { Text(stringResource(R.string.snippets)) },
@@ -64,7 +67,8 @@ fun SnippetsScreen(
             if (Snippets.canRemoveKaomoji(snippets))
                 stringResource(R.string.snippets_remove_kaomoji) to { Snippets.removeKaomoji(ctx); savedCount += 1 }
             else null,
-        ).ifEmpty { null },
+            stringResource(R.string.snippets_import_swiftkey) to { swiftKeyPicker.launch(swiftKeyFileIntent(ctx)) },
+        ),
         filteredItems = { term ->
             snippets.withIndex().filter { (_, s) ->
                 s.text.contains(term, true) || s.label?.contains(term, true) == true || s.shortcut?.startsWith(term, true) == true
