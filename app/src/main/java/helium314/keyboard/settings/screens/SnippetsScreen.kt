@@ -67,14 +67,17 @@ fun SnippetsScreen(
             if (Snippets.canRemoveKaomoji(snippets))
                 stringResource(R.string.snippets_remove_kaomoji) to { Snippets.removeKaomoji(ctx); savedCount += 1 }
             else null,
-            stringResource(R.string.snippets_import_swiftkey) to { swiftKeyPicker.launch(swiftKeyFileIntent(ctx)) },
-        ),
+        ).ifEmpty { null },
         filteredItems = { term ->
             snippets.withIndex().filter { (_, s) ->
                 s.text.contains(term, true) || s.label?.contains(term, true) == true || s.shortcut?.startsWith(term, true) == true
             }
         },
         itemContent = { (index, snippet) ->
+            // above the first snippet, as SearchScreen has no header and the arrows only show with 2 or more snippets
+            if (index == 0 && snippets.size > 1)
+                Text(stringResource(R.string.snippets_order_hint), style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -103,13 +106,21 @@ fun SnippetsScreen(
     editIndex?.let { index ->
         EditSnippetDialog(snippets, index, ::save) { editIndex = null }
     }
-    ExtendedFloatingActionButton(
-        onClick = { editIndex = snippets.size },
-        text = { Text(stringResource(R.string.snippet_add)) },
-        icon = { Icon(painter = painterResource(R.drawable.ic_plus), stringResource(R.string.snippet_add)) },
+    Column(
+        horizontalAlignment = Alignment.End,
+        verticalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier.wrapContentSize(Alignment.BottomEnd).padding(all = 12.dp)
             .then(Modifier.safeDrawingPadding())
-    )
+    ) {
+        ExtendedFloatingActionButton(onClick = { swiftKeyPicker.launch(swiftKeyFileIntent(ctx)) }) {
+            Text(stringResource(R.string.snippets_import_swiftkey))
+        }
+        ExtendedFloatingActionButton(
+            onClick = { editIndex = snippets.size },
+            text = { Text(stringResource(R.string.snippet_add)) },
+            icon = { Icon(painter = painterResource(R.drawable.ic_plus), stringResource(R.string.snippet_add)) },
+        )
+    }
 }
 
 @Composable
