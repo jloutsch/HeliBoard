@@ -73,7 +73,7 @@ class Database private constructor(context: Context, name: String = NAME) : SQLi
                                         it.getStringOrNull(3),
                                         it.getStringOrNull(4)?.split("§"),
                                         null,
-                                        if (pinned) clipDao.getValidShortcut(it.getStringOrNull(5)) else null
+                                        if (pinned) it.getStringOrNull(5) else null // checked when Snippets copies it
                                     )
                                 }
                             }

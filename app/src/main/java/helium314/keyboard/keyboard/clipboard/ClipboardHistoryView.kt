@@ -10,6 +10,7 @@ import android.util.TypedValue
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.widget.ImageButton
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.recyclerview.widget.StaggeredGridLayoutManager
@@ -31,6 +32,7 @@ import helium314.keyboard.latin.common.Constants
 import helium314.keyboard.latin.database.ClipboardDao
 import helium314.keyboard.latin.settings.Settings
 import helium314.keyboard.latin.utils.ResourceUtils
+import helium314.keyboard.latin.utils.Snippets
 import helium314.keyboard.latin.utils.ToolbarKey
 import helium314.keyboard.latin.utils.createToolbarKey
 import helium314.keyboard.latin.utils.getEnabledClipboardToolbarKeys
@@ -55,10 +57,14 @@ class ClipboardHistoryView @JvmOverloads constructor(
     private lateinit var clipboardRecyclerView: ClipboardHistoryRecyclerView
     private lateinit var placeholderView: TextView
     private val toolbarKeys = mutableListOf<ImageButton>()
+    private lateinit var saveSnippetKey: ImageButton
     private lateinit var clipboardAdapter: ClipboardAdapter
 
     lateinit var keyboardActionListener: KeyboardActionListener
     private lateinit var clipboardHistoryManager: ClipboardHistoryManager
+    // the snippets panel is this view showing snippets instead of the clipboard history
+    var isShowingSnippets = false
+        private set
 
     init {
         val clipboardViewAttr = context.obtainStyledAttributes(attrs,
@@ -101,7 +107,13 @@ class ClipboardHistoryView @JvmOverloads constructor(
             placeholderView = this@ClipboardHistoryView.placeholderView
         }
         val clipboardStrip = KeyboardSwitcher.getInstance().clipboardStrip
-        toolbarKeys.forEach {
+        saveSnippetKey = ImageButton(context, null, R.attr.suggestionWordStyle).apply {
+            scaleType = ImageView.ScaleType.CENTER
+            setImageResource(R.drawable.sym_keyboard_snippet_save)
+            contentDescription = context.getString(R.string.snippet_save)
+            isActivated = true // toolbar keys are drawn dimmed when not activated
+        }
+        (listOf(saveSnippetKey) + toolbarKeys).forEach {
             clipboardStrip.addView(it)
             it.setOnClickListener(this@ClipboardHistoryView)
             it.setOnLongClickListener(this@ClipboardHistoryView)
@@ -123,6 +135,10 @@ class ClipboardHistoryView @JvmOverloads constructor(
         // set layout params
         val toolbarKeyLayoutParams = LayoutParams(resources.getDimensionPixelSize(R.dimen.config_suggestions_strip_edge_key_width), LayoutParams.MATCH_PARENT)
         toolbarKeys.forEach { it.layoutParams = toolbarKeyLayoutParams }
+        saveSnippetKey.layoutParams = toolbarKeyLayoutParams
+        saveSnippetKey.visibility = if (isShowingSnippets) VISIBLE else GONE
+        // clearing the clipboard history makes no sense in the snippets panel
+        toolbarKeys.forEach { it.visibility = if (isShowingSnippets && it.tag == ToolbarKey.CLEAR_CLIPBOARD) GONE else VISIBLE }
     }
 
     private fun setupBottomRowKeyboard(editorInfo: EditorInfo, listener: KeyboardActionListener) {
@@ -143,14 +159,23 @@ class ClipboardHistoryView @JvmOverloads constructor(
             historyManager: ClipboardHistoryManager,
             keyVisualAttr: KeyVisualAttributes?,
             editorInfo: EditorInfo,
-            keyboardActionListener: KeyboardActionListener
+            keyboardActionListener: KeyboardActionListener,
+            snippets: Boolean
     ) {
         clipboardHistoryManager = historyManager
+        isShowingSnippets = snippets
         initialize()
         setupToolbarKeys()
-        historyManager.prepareClipboardHistory()
-        historyManager.setHistoryChangeListener(this)
-        clipboardAdapter.clipboardHistoryManager = historyManager
+        if (snippets) {
+            historyManager.setHistoryChangeListener(null)
+            clipboardAdapter.clipboardHistoryManager = null
+            clipboardAdapter.snippets = Snippets.get(context)
+        } else {
+            historyManager.prepareClipboardHistory()
+            historyManager.setHistoryChangeListener(this)
+            clipboardAdapter.clipboardHistoryManager = historyManager
+            clipboardAdapter.snippets = null
+        }
 
         val params = KeyDrawParams()
         params.updateParams(clipboardLayoutParams.bottomRowKeyboardHeight, keyVisualAttr)
@@ -162,7 +187,13 @@ class ClipboardHistoryView @JvmOverloads constructor(
         placeholderView.apply {
             KeyboardTypeface.applyToTextView(this)
             setTextColor(params.mTextColor)
-            setTextSize(TypedValue.COMPLEX_UNIT_PX, params.mLabelSize.toFloat() * 2)
+            if (snippets) {
+                setText(R.string.snippets_panel_empty)
+                setTextSize(TypedValue.COMPLEX_UNIT_PX, params.mLabelSize.toFloat())
+            } else {
+                text = "¯\\_(ツ)_/¯"
+                setTextSize(TypedValue.COMPLEX_UNIT_PX, params.mLabelSize.toFloat() * 2)
+            }
         }
         clipboardRecyclerView.apply {
             adapter = clipboardAdapter
@@ -185,7 +216,7 @@ class ClipboardHistoryView @JvmOverloads constructor(
         }
 
         // absurd workaround so Android sets the correct color from stateList (depending on "activated")
-        toolbarKeys.forEach { it.isEnabled = false; it.isEnabled = true }
+        (toolbarKeys + saveSnippetKey).forEach { it.isEnabled = false; it.isEnabled = true }
     }
 
     fun stopClipboardHistory() {
@@ -193,12 +224,17 @@ class ClipboardHistoryView @JvmOverloads constructor(
         clipboardRecyclerView.adapter = null
         clipboardHistoryManager.setHistoryChangeListener(null)
         clipboardAdapter.clipboardHistoryManager = null
+        clipboardAdapter.snippets = null
     }
 
     override fun onClick(view: View) {
-        if (view.tag is ToolbarKey) {
+        if (view === saveSnippetKey) {
+            // the panel is updated in onSharedPreferenceChanged
+            keyboardActionListener.onCodeInput(KeyCode.SNIPPET_SAVE, Constants.NOT_A_COORDINATE, Constants.NOT_A_COORDINATE, false)
+        } else if (view.tag is ToolbarKey) {
             onClickToolbarKey(view) {
-                keyboardActionListener.onCodeInput(it, Constants.NOT_A_COORDINATE, Constants.NOT_A_COORDINATE, false)
+                val code = if (isShowingSnippets && view.tag == ToolbarKey.CLOSE_HISTORY) KeyCode.SNIPPETS else it
+                keyboardActionListener.onCodeInput(code, Constants.NOT_A_COORDINATE, Constants.NOT_A_COORDINATE, false)
             }
         }
     }
@@ -218,9 +254,14 @@ class ClipboardHistoryView @JvmOverloads constructor(
     }
 
     override fun onKeyUp(clipId: Long) {
-        val clipContent = clipboardHistoryManager.getHistoryEntryContent(clipId)
-        if (clipContent?.filename != null) keyboardActionListener.onContent(clipContent.getContentInfo(context))
-        else keyboardActionListener.onTextInput(clipContent?.text)
+        if (isShowingSnippets) {
+            // trimmed like a snippet inserted by its shortcut
+            keyboardActionListener.onTextInput(clipboardAdapter.snippets?.getOrNull(clipId.toInt())?.text?.trim())
+        } else {
+            val clipContent = clipboardHistoryManager.getHistoryEntryContent(clipId)
+            if (clipContent?.filename != null) keyboardActionListener.onContent(clipContent.getContentInfo(context))
+            else keyboardActionListener.onTextInput(clipContent?.text)
+        }
         keyboardActionListener.onReleaseKey(KeyCode.NOT_SPECIFIED, false)
         if (Settings.getValues().mAlphaAfterClipHistoryEntry)
             keyboardActionListener.onCodeInput(KeyCode.ALPHA, Constants.NOT_A_COORDINATE, Constants.NOT_A_COORDINATE, false)
@@ -243,6 +284,10 @@ class ClipboardHistoryView @JvmOverloads constructor(
 
     override fun onSharedPreferenceChanged(prefs: SharedPreferences?, key: String?) {
         setToolbarButtonsActivatedStateOnPrefChange(KeyboardSwitcher.getInstance().clipboardStrip, key)
+        if (isShowingSnippets && key == Settings.PREF_SNIPPETS && ::clipboardAdapter.isInitialized && clipboardAdapter.snippets != null) {
+            clipboardAdapter.snippets = Snippets.get(context)
+            clipboardAdapter.notifyDataSetChanged()
+        }
 
         // The setting can only be changed from a settings screen, but adding it to this listener seems necessary: https://github.com/HeliBorg/HeliBoard/pull/1903#issuecomment-3478424606
         if (::clipboardHistoryManager.isInitialized && key == Settings.PREF_CLIPBOARD_HISTORY_PINNED_FIRST) {

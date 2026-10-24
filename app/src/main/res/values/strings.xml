@@ -216,24 +216,40 @@
     <string name="clipboard_history_retention_time">History retention time</string>
     <!-- Preferences item for showing pinned clipboard items first -->
     <string name="clipboard_history_pinned_first">Show pinned items on top</string>
-    <!-- Preferences item and screen title for setting shortcuts on pinned clipboard items -->
-    <string name="clipboard_snippets">Clipboard snippets</string>
-    <!-- Description for clipboard snippets preference -->
-    <string name="clipboard_snippets_summary">Type a shortcut to get a pinned item as suggestion</string>
-    <!-- Shown in clipboard snippets screen if there are no pinned text items -->
-    <string name="clipboard_snippets_empty">Add a snippet, or pin text in the clipboard history to give it a shortcut</string>
-    <!-- Button and dialog title for adding a clipboard snippet -->
-    <string name="clipboard_snippet_add">Add snippet</string>
-    <!-- Dialog title for editing a clipboard snippet -->
-    <string name="clipboard_snippet_edit">Edit snippet</string>
-    <!-- Label for the text field of a clipboard snippet -->
-    <string name="clipboard_snippet_text">Text</string>
-    <!-- Label for the shortcut field of a clipboard snippet -->
-    <string name="clipboard_snippet_shortcut">Shortcut</string>
-    <!-- Error when a clipboard snippet shortcut contains other characters than letters and digits -->
-    <string name="clipboard_snippet_shortcut_invalid">Only letters and digits are allowed</string>
-    <!-- Error when a clipboard snippet shortcut is already used by another snippet -->
-    <string name="clipboard_snippet_shortcut_used">Shortcut already in use</string>
+    <!-- Preferences item, screen title and toolbar key for saved text snippets -->
+    <string name="snippets" tools:keep="@string/snippets">Snippets</string>
+    <!-- Description for snippets preference -->
+    <string name="snippets_summary">Saved text to insert from the snippets toolbar key, or by typing a shortcut</string>
+    <!-- Shown in snippets screen if there are no snippets -->
+    <string name="snippets_empty">Add text you use often. It can then be inserted from the snippets toolbar key, or by typing its shortcut.</string>
+    <!-- Shown in the snippets panel of the keyboard if there are no snippets -->
+    <string name="snippets_panel_empty">No snippets yet. Add them in settings, or select text and tap +.</string>
+    <!-- Button and dialog title for adding a snippet -->
+    <string name="snippet_add">Add snippet</string>
+    <!-- Dialog title for editing a snippet -->
+    <string name="snippet_edit">Edit snippet</string>
+    <!-- Label for the text field of a snippet -->
+    <string name="snippet_text">Text</string>
+    <!-- Label for the optional label field of a snippet, the label is shown in the snippets panel instead of the text -->
+    <string name="snippet_label">Label (optional)</string>
+    <!-- Label for the shortcut field of a snippet -->
+    <string name="snippet_shortcut">Shortcut (optional)</string>
+    <!-- Error when a snippet shortcut contains other characters than letters and digits -->
+    <string name="snippet_shortcut_invalid">Only letters and digits are allowed</string>
+    <!-- Error when a snippet shortcut is already used by another snippet -->
+    <string name="snippet_shortcut_used">Shortcut already in use</string>
+    <!-- Description of the button that moves a snippet up in the list -->
+    <string name="snippet_move_up">Move up</string>
+    <!-- Menu item in snippets screen -->
+    <string name="snippets_add_kaomoji">Add kaomoji</string>
+    <!-- Menu item in snippets screen -->
+    <string name="snippets_remove_kaomoji">Remove kaomoji</string>
+    <!-- Description of the button in the snippets panel that saves the selected text, or the clipboard text if nothing is selected -->
+    <string name="snippet_save">Save selection or clipboard as snippet</string>
+    <!-- Toast after saving a snippet from the keyboard -->
+    <string name="snippet_saved">Snippet saved</string>
+    <!-- Toast if there was no selected text or clipboard text to save as snippet, or it was already saved -->
+    <string name="snippet_not_saved">Nothing new to save</string>
     <!-- Preferences item for extending the clipboard history to files (images or others) -->
     <string name="clipboard_history_files">Add images and other files to clipboard history</string>
     <!-- Preferences item for selecting maximum combined size of clipboard history files -->

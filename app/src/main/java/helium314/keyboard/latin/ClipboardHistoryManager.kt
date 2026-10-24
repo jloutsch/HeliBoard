@@ -165,12 +165,6 @@ class ClipboardHistoryManager(
 
     fun getHistorySize() = clipboardDao?.count() ?: 0
 
-    /** Texts of pinned clips whose shortcut matches [word] */
-    fun getSnippetsForShortcut(word: String): List<String> {
-        if (!latinIME.mSettings.current.mClipboardHistoryEnabled) return emptyList()
-        return clipboardDao?.getSnippetsForShortcut(word)?.mapNotNull { it.text?.trim() } ?: emptyList()
-    }
-
     fun getHistoryEntry(position: Int) = clipboardDao?.getAt(position)
 
     fun getHistoryEntryContent(id: Long) = clipboardDao?.get(id)
