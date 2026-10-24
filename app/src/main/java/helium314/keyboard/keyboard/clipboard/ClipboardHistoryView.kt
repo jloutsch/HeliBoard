@@ -109,8 +109,9 @@ class ClipboardHistoryView @JvmOverloads constructor(
         val clipboardStrip = KeyboardSwitcher.getInstance().clipboardStrip
         saveSnippetKey = ImageButton(context, null, R.attr.suggestionWordStyle).apply {
             scaleType = ImageView.ScaleType.CENTER
-            setImageResource(R.drawable.ic_plus)
+            setImageResource(R.drawable.sym_keyboard_snippet_save)
             contentDescription = context.getString(R.string.snippet_save)
+            isActivated = true // toolbar keys are drawn dimmed when not activated
         }
         (listOf(saveSnippetKey) + toolbarKeys).forEach {
             clipboardStrip.addView(it)
@@ -215,7 +216,7 @@ class ClipboardHistoryView @JvmOverloads constructor(
         }
 
         // absurd workaround so Android sets the correct color from stateList (depending on "activated")
-        toolbarKeys.forEach { it.isEnabled = false; it.isEnabled = true }
+        (toolbarKeys + saveSnippetKey).forEach { it.isEnabled = false; it.isEnabled = true }
     }
 
     fun stopClipboardHistory() {
