@@ -91,6 +91,7 @@ public class SettingsValues {
     public final boolean mDeleteWordOnLongPress;
     public final boolean mAutospaceAfterPunctuation;
     public final boolean mAutospaceAfterSuggestion;
+    public final boolean mExpandSnippets;
     public final boolean mAutospaceAfterGestureTyping;
     public final boolean mAutospaceBeforeGestureTyping;
     public final boolean mShiftRemovesAutospace;
@@ -286,6 +287,7 @@ public class SettingsValues {
         mDeleteWordOnLongPress = prefs.getBoolean(Settings.PREF_DELETE_WORD_ON_LONG_PRESS, Defaults.PREF_DELETE_WORD_ON_LONG_PRESS);
         mAutospaceAfterPunctuation = prefs.getBoolean(Settings.PREF_AUTOSPACE_AFTER_PUNCTUATION, Defaults.PREF_AUTOSPACE_AFTER_PUNCTUATION);
         mAutospaceAfterSuggestion = prefs.getBoolean(Settings.PREF_AUTOSPACE_AFTER_SUGGESTION, Defaults.PREF_AUTOSPACE_AFTER_SUGGESTION);
+        mExpandSnippets = prefs.getBoolean(Settings.PREF_EXPAND_SNIPPETS, Defaults.PREF_EXPAND_SNIPPETS);
         mAutospaceAfterGestureTyping = prefs.getBoolean(Settings.PREF_AUTOSPACE_AFTER_GESTURE_TYPING, Defaults.PREF_AUTOSPACE_AFTER_GESTURE_TYPING);
         mAutospaceBeforeGestureTyping = prefs.getBoolean(Settings.PREF_AUTOSPACE_BEFORE_GESTURE_TYPING, Defaults.PREF_AUTOSPACE_BEFORE_GESTURE_TYPING);
         mShiftRemovesAutospace = prefs.getBoolean(Settings.PREF_SHIFT_REMOVES_AUTOSPACE, Defaults.PREF_SHIFT_REMOVES_AUTOSPACE);

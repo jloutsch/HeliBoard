@@ -27,6 +27,8 @@ import helium314.keyboard.latin.inputlogic.InputLogic
 import helium314.keyboard.latin.inputlogic.SpaceState
 import helium314.keyboard.latin.settings.Settings
 import helium314.keyboard.latin.utils.ScriptUtils
+import helium314.keyboard.latin.utils.Snippet
+import helium314.keyboard.latin.utils.Snippets
 import helium314.keyboard.latin.utils.SubtypeSettings
 import helium314.keyboard.latin.utils.getTimestampFormatter
 import helium314.keyboard.latin.utils.prefs
@@ -480,6 +482,28 @@ class InputLogicTest {
         assertEquals("", composingText)
     }
 
+    // suggestions are set directly, as for auto-correction tests; Suggest decides whether a snippet will be expanded
+    @Test fun `snippet is expanded on space also with auto-correction off, not learned, and reverted on delete`() {
+        latinIME.prefs().edit {
+            putBoolean(Settings.PREF_EXPAND_SNIPPETS, true)
+            putBoolean(Settings.PREF_AUTO_CORRECTION, false)
+        }
+        chainInput("it bc")
+        lastAddedWord = ""
+        getAutocorrectedWithSpaceAfter("because", "bc", SuggestedWordInfo.KIND_CLIPBOARD_SNIPPET)
+        assertEquals("it because ", text)
+        assertEquals("", lastAddedWord)
+        functionalKeyPress(KeyCode.DELETE)
+        assertEquals("it bc", text)
+    }
+
+    @Test fun `snippet is not expanded with auto-correction and expanding off`() {
+        latinIME.prefs().edit { putBoolean(Settings.PREF_AUTO_CORRECTION, false) }
+        chainInput("it bc")
+        getAutocorrectedWithSpaceAfter("because", "bc", SuggestedWordInfo.KIND_CLIPBOARD_SNIPPET)
+        assertEquals("it bc ", text)
+    }
+
     @Test fun `autospace after selecting a suggestion`() {
         pickSuggestion("this")
         input('b')
@@ -872,8 +896,8 @@ class InputLogicTest {
     }
 
     // only works when autocorrect is on, separator after word is required
-    private fun getAutocorrectedWithSpaceAfter(suggestion: String, typedWord: String?) {
-        val info = SuggestedWordInfo(suggestion, "", 0, 0, null, 0, 0)
+    private fun getAutocorrectedWithSpaceAfter(suggestion: String, typedWord: String?, kind: Int = 0) {
+        val info = SuggestedWordInfo(suggestion, "", 0, kind, null, 0, 0)
         val typedInfo = SuggestedWordInfo(typedWord, "", 0, 0, null, 0, 0)
         val sw = SuggestedWords(ArrayList(listOf(typedInfo, info)), null, typedInfo, false, true, false, 0, 0)
         latinIME.mInputLogic.setSuggestedWords(sw) // this prepares for autocorrect

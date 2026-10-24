@@ -111,6 +111,7 @@ object Defaults {
     const val PREF_DELETE_WORD_ON_LONG_PRESS = false
     const val PREF_AUTOSPACE_AFTER_PUNCTUATION = false
     const val PREF_AUTOSPACE_AFTER_SUGGESTION = true
+    const val PREF_EXPAND_SNIPPETS = false
     const val PREF_AUTOSPACE_AFTER_GESTURE_TYPING = true
     const val PREF_AUTOSPACE_BEFORE_GESTURE_TYPING = true
     const val PREF_SHIFT_REMOVES_AUTOSPACE = false

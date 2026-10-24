@@ -606,6 +606,18 @@ class SuggestTest {
         assert(result.getInfo(SuggestedWords.INDEX_OF_AUTO_CORRECTION).isKindOf(SuggestedWordInfo.KIND_CLIPBOARD_SNIPPET))
     }
 
+    @Test fun `snippet is auto-corrected to if expanding is on, capitalized like the shortcut`() {
+        Snippets.save(latinIME, listOf(Snippet("because", shortcut = "bc")))
+        assert(!getSuggestedWords(false, "bc", CapsMode.OFF).mWillAutoCorrect)
+
+        latinIME.prefs().edit { putBoolean(Settings.PREF_EXPAND_SNIPPETS, true) }
+        val result = getSuggestedWords(false, "bc", CapsMode.OFF)
+        assert(result.mWillAutoCorrect)
+        assertEquals("because", result.getInfo(SuggestedWords.INDEX_OF_AUTO_CORRECTION).mWord)
+        assertEquals("Because", getSuggestedWords(false, "Bc", CapsMode.OFF).getInfo(SuggestedWords.INDEX_OF_AUTO_CORRECTION).mWord)
+        assertEquals("BECAUSE", getSuggestedWords(false, "BC", CapsMode.OFF).getInfo(SuggestedWords.INDEX_OF_AUTO_CORRECTION).mWord)
+    }
+
     private fun getSuggestedWords(gesture: Boolean, typedWord: String, capsMode: CapsMode): SuggestedWords {
         val wc = WordComposer()
         if (gesture) wc.setBatchInputPointers(InputPointers(1))
