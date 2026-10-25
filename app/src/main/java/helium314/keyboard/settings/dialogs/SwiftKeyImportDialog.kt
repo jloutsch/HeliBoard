@@ -29,7 +29,7 @@ import com.android.inputmethod.latin.BinaryDictionary
 import helium314.keyboard.latin.R
 import helium314.keyboard.latin.dictionary.Dictionary
 import helium314.keyboard.latin.dictionary.DictionaryFactory
-import helium314.keyboard.latin.utils.DictionaryInfoUtils
+import helium314.keyboard.latin.dictionary.DictionaryInfoUtils
 import helium314.keyboard.latin.utils.IntentUtils
 import helium314.keyboard.latin.utils.Log
 import helium314.keyboard.latin.utils.Snippets
