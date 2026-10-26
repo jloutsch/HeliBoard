@@ -229,8 +229,11 @@ class ClipboardHistoryView @JvmOverloads constructor(
 
     override fun onClick(view: View) {
         if (view === saveSnippetKey) {
-            // the panel is updated in onSharedPreferenceChanged
             keyboardActionListener.onCodeInput(KeyCode.SNIPPET_SAVE, Constants.NOT_A_COORDINATE, Constants.NOT_A_COORDINATE, false)
+            if (isShowingSnippets && clipboardAdapter.snippets != null) {
+                clipboardAdapter.snippets = Snippets.get(context)
+                clipboardAdapter.notifyDataSetChanged()
+            }
         } else if (view.tag is ToolbarKey) {
             onClickToolbarKey(view) {
                 val code = if (isShowingSnippets && view.tag == ToolbarKey.CLOSE_HISTORY) KeyCode.SNIPPETS else it
@@ -284,10 +287,6 @@ class ClipboardHistoryView @JvmOverloads constructor(
 
     override fun onSharedPreferenceChanged(prefs: SharedPreferences?, key: String?) {
         setToolbarButtonsActivatedStateOnPrefChange(KeyboardSwitcher.getInstance().clipboardStrip, key)
-        if (isShowingSnippets && key == Settings.PREF_SNIPPETS && ::clipboardAdapter.isInitialized && clipboardAdapter.snippets != null) {
-            clipboardAdapter.snippets = Snippets.get(context)
-            clipboardAdapter.notifyDataSetChanged()
-        }
 
         // The setting can only be changed from a settings screen, but adding it to this listener seems necessary: https://github.com/HeliBorg/HeliBoard/pull/1903#issuecomment-3478424606
         if (::clipboardHistoryManager.isInitialized && key == Settings.PREF_CLIPBOARD_HISTORY_PINNED_FIRST) {
