@@ -141,6 +141,11 @@ public final class InputAttributes {
         return InputType.TYPE_NULL == mInputType;
     }
 
+    public boolean isSearchField() {
+        return mEditorInfo != null && (InputTypeUtils.getImeOptionsActionIdFromEditorInfo(mEditorInfo) == EditorInfo.IME_ACTION_SEARCH
+                || (mInputType & InputType.TYPE_MASK_VARIATION) == InputType.TYPE_TEXT_VARIATION_FILTER);
+    }
+
     public boolean isSameInputType(final EditorInfo editorInfo) {
         return editorInfo.inputType == mInputType && mEditorInfo != null
                 && (mEditorInfo.imeOptions & EditorInfo.IME_FLAG_FORCE_ASCII) == (editorInfo.imeOptions & EditorInfo.IME_FLAG_FORCE_ASCII);

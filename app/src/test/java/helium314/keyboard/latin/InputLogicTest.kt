@@ -488,7 +488,8 @@ class InputLogicTest {
             putBoolean(Settings.PREF_EXPAND_SNIPPETS, true)
             putBoolean(Settings.PREF_AUTO_CORRECTION, false)
         }
-        setInputType(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_AUTO_CORRECT)
+        // like the Samsung Notes body: no auto-correct or multi-line flag
+        setInputType(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES)
         chainInput("it bc")
         lastAddedWord = ""
         getAutocorrectedWithSpaceAfter("because", "bc", SuggestedWordInfo.KIND_CLIPBOARD_SNIPPET)
@@ -505,12 +506,24 @@ class InputLogicTest {
         assertEquals("it bc ", text)
     }
 
-    @Test fun `snippet is not expanded in fields that don't allow auto-correction`() {
+    @Test fun `snippet is not expanded in URL fields`() {
         latinIME.prefs().edit {
             putBoolean(Settings.PREF_EXPAND_SNIPPETS, true)
             putBoolean(Settings.PREF_AUTO_CORRECTION, false)
         }
         setInputType(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI)
+        chainInput("it bc")
+        getAutocorrectedWithSpaceAfter("because", "bc", SuggestedWordInfo.KIND_CLIPBOARD_SNIPPET)
+        assertEquals("it bc ", text)
+    }
+
+    @Test fun `snippet is not expanded in search fields`() {
+        latinIME.prefs().edit {
+            putBoolean(Settings.PREF_EXPAND_SNIPPETS, true)
+            putBoolean(Settings.PREF_AUTO_CORRECTION, false)
+        }
+        ShadowInputMethodService.currentImeOptions = EditorInfo.IME_ACTION_SEARCH
+        setInputType(InputType.TYPE_CLASS_TEXT)
         chainInput("it bc")
         getAutocorrectedWithSpaceAfter("because", "bc", SuggestedWordInfo.KIND_CLIPBOARD_SNIPPET)
         assertEquals("it bc ", text)
@@ -894,6 +907,7 @@ class InputLogicTest {
         // restarting is false, so this is seen as a new text field
         val ei = EditorInfo()
         ei.inputType = currentInputType
+        ei.imeOptions = ShadowInputMethodService.currentImeOptions
         latinIME.mHandler.onStartInput(ei, false)
         latinIME.mHandler.onStartInputView(ei, false)
         handleMessages() // this is important so the composing span is set correctly

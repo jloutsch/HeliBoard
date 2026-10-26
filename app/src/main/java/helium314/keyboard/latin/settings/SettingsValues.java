@@ -288,8 +288,9 @@ public class SettingsValues {
         mDeleteWordOnLongPress = prefs.getBoolean(Settings.PREF_DELETE_WORD_ON_LONG_PRESS, Defaults.PREF_DELETE_WORD_ON_LONG_PRESS);
         mAutospaceAfterPunctuation = prefs.getBoolean(Settings.PREF_AUTOSPACE_AFTER_PUNCTUATION, Defaults.PREF_AUTOSPACE_AFTER_PUNCTUATION);
         mAutospaceAfterSuggestion = prefs.getBoolean(Settings.PREF_AUTOSPACE_AFTER_SUGGESTION, Defaults.PREF_AUTOSPACE_AFTER_SUGGESTION);
-        // only where auto-correction could run, e.g. not in URL, search or user name fields
-        mExpandSnippets = fieldAllowsAutoCorrect && prefs.getBoolean(Settings.PREF_EXPAND_SNIPPETS, Defaults.PREF_EXPAND_SNIPPETS);
+        // not in URL, email, password or search fields; the auto-correct flag is not required, many note apps don't set it
+        mExpandSnippets = mInputAttributes.mIsGeneralTextInput && mInputAttributes.mShouldShowSuggestions && !mInputAttributes.isSearchField()
+                && prefs.getBoolean(Settings.PREF_EXPAND_SNIPPETS, Defaults.PREF_EXPAND_SNIPPETS);
         mAutospaceAfterGestureTyping = prefs.getBoolean(Settings.PREF_AUTOSPACE_AFTER_GESTURE_TYPING, Defaults.PREF_AUTOSPACE_AFTER_GESTURE_TYPING);
         mAutospaceBeforeGestureTyping = prefs.getBoolean(Settings.PREF_AUTOSPACE_BEFORE_GESTURE_TYPING, Defaults.PREF_AUTOSPACE_BEFORE_GESTURE_TYPING);
         mShiftRemovesAutospace = prefs.getBoolean(Settings.PREF_SHIFT_REMOVES_AUTOSPACE, Defaults.PREF_SHIFT_REMOVES_AUTOSPACE);
