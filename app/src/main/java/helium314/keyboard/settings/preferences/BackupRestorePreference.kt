@@ -24,6 +24,7 @@ import helium314.keyboard.latin.database.Database
 import helium314.keyboard.latin.settings.Settings
 import helium314.keyboard.latin.utils.DeviceProtectedUtils
 import helium314.keyboard.latin.utils.ExecutorUtils
+import helium314.keyboard.latin.utils.JniUtils
 import helium314.keyboard.latin.utils.LayoutUtilsCustom
 import helium314.keyboard.latin.utils.Log
 import helium314.keyboard.latin.utils.SubtypeSettings
@@ -174,10 +175,8 @@ private fun restoreLauncher(onError: (String) -> Unit): ManagedActivityResultLau
             val oldProtectedPrefs = ctx.protectedPrefs().all.toMap()
             val filesDir = ctx.filesDir!!
             val deviceProtectedFilesDir = DeviceProtectedUtils.getFilesDir(ctx)
-            val filesDir2 = File(filesDir.absolutePath + "2")
-            val deviceProtectedFilesDir2 = File(deviceProtectedFilesDir.absolutePath + "2")
-            filesDir.renameTo(filesDir2)
-            deviceProtectedFilesDir2.renameTo(deviceProtectedFilesDir2)
+            val filesDirs = listOf(filesDir, deviceProtectedFilesDir)
+            moveFilesDirsAside(filesDirs)
             try {
                 var anyMatch = false
                 ctx.getActivity()?.contentResolver?.openInputStream(uri)?.use { inputStream ->
@@ -224,16 +223,16 @@ private fun restoreLauncher(onError: (String) -> Unit): ManagedActivityResultLau
                     throw Exception("nothing to restore in the given file")
 
                 Database.copyFromDb(restoredDb, ctx)
-                filesDir2.deleteRecursively()
-                deviceProtectedFilesDir2.deleteRecursively()
+                // the gesture typing library is not in backups, keep it and its checksum
+                deleteMovedFilesDirs(filesDirs, listOf(JniUtils.JNI_LIB_IMPORT_FILE_NAME))
+                oldProtectedPrefs[Settings.PREF_LIBRARY_CHECKSUM]?.let {
+                    ctx.protectedPrefs().edit { putString(Settings.PREF_LIBRARY_CHECKSUM, it as String) }
+                }
                 if (Looper.myLooper() == null)
                     Looper.prepare()
                 Toast.makeText(ctx, ctx.getString(R.string.backup_restored), Toast.LENGTH_LONG).show()
             } catch (t: Throwable) {
-                filesDir.deleteRecursively()
-                filesDir2.renameTo(filesDir)
-                deviceProtectedFilesDir.deleteRecursively()
-                deviceProtectedFilesDir2.renameTo(deviceProtectedFilesDir)
+                putBackFilesDirs(filesDirs)
                 ctx.prefs().edit {
                     clear()
                     oldPrefs.forEach { (key, value) ->
@@ -335,6 +334,30 @@ private fun restoreEntryToDir(zip: ZipInputStream, baseDir: File, entryName: Str
     FileUtils.copyStreamToNewFile(zip, file)
     return true
 }
+
+// The files dirs are moved aside while restoring, and put back if restoring fails.
+// Both dirs are the same before Android 7, hence distinct.
+internal fun moveFilesDirsAside(dirs: List<File>) = dirs.distinct().forEach { it.renameTo(movedAside(it)) }
+
+/** Deletes the dirs moved aside after restoring, except for the files named [keep], which are moved to the restored dirs. */
+internal fun deleteMovedFilesDirs(dirs: List<File>, keep: List<String>) = dirs.distinct().forEach { dir ->
+    val moved = movedAside(dir)
+    keep.forEach { name ->
+        val file = File(moved, name)
+        if (file.isFile) {
+            dir.mkdirs()
+            file.renameTo(File(dir, name))
+        }
+    }
+    moved.deleteRecursively()
+}
+
+internal fun putBackFilesDirs(dirs: List<File>) = dirs.distinct().forEach {
+    it.deleteRecursively()
+    movedAside(it).renameTo(it)
+}
+
+private fun movedAside(dir: File) = File(dir.absolutePath + "2")
 
 private const val PREFS_FILE_NAME = "preferences.json"
 private const val PROTECTED_PREFS_FILE_NAME = "protected_preferences.json"
