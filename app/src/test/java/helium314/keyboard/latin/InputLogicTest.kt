@@ -488,6 +488,7 @@ class InputLogicTest {
             putBoolean(Settings.PREF_EXPAND_SNIPPETS, true)
             putBoolean(Settings.PREF_AUTO_CORRECTION, false)
         }
+        setInputType(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_AUTO_CORRECT)
         chainInput("it bc")
         lastAddedWord = ""
         getAutocorrectedWithSpaceAfter("because", "bc", SuggestedWordInfo.KIND_CLIPBOARD_SNIPPET)
@@ -499,6 +500,17 @@ class InputLogicTest {
 
     @Test fun `snippet is not expanded with auto-correction and expanding off`() {
         latinIME.prefs().edit { putBoolean(Settings.PREF_AUTO_CORRECTION, false) }
+        chainInput("it bc")
+        getAutocorrectedWithSpaceAfter("because", "bc", SuggestedWordInfo.KIND_CLIPBOARD_SNIPPET)
+        assertEquals("it bc ", text)
+    }
+
+    @Test fun `snippet is not expanded in fields that don't allow auto-correction`() {
+        latinIME.prefs().edit {
+            putBoolean(Settings.PREF_EXPAND_SNIPPETS, true)
+            putBoolean(Settings.PREF_AUTO_CORRECTION, false)
+        }
+        setInputType(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI)
         chainInput("it bc")
         getAutocorrectedWithSpaceAfter("because", "bc", SuggestedWordInfo.KIND_CLIPBOARD_SNIPPET)
         assertEquals("it bc ", text)

@@ -611,7 +611,11 @@ class SuggestTest {
         Snippets.save(latinIME, listOf(Snippet("because", shortcut = "bc")))
         assert(!getSuggestedWords(false, "bc", CapsMode.OFF).mWillAutoCorrect)
 
-        latinIME.prefs().edit { putBoolean(Settings.PREF_EXPAND_SNIPPETS, true) }
+        // the test has no text field, so auto-correction (and with it expanding) needs to be allowed in all fields
+        latinIME.prefs().edit {
+            putBoolean(Settings.PREF_EXPAND_SNIPPETS, true)
+            putBoolean(Settings.PREF_MORE_AUTO_CORRECTION, true)
+        }
         val result = getSuggestedWords(false, "bc", CapsMode.OFF)
         assert(result.mWillAutoCorrect)
         assertEquals("because", result.getInfo(SuggestedWords.INDEX_OF_AUTO_CORRECTION).mWord)
