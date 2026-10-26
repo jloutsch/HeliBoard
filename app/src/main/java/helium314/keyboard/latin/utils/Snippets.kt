@@ -3,6 +3,7 @@ package helium314.keyboard.latin.utils
 
 import android.content.Context
 import androidx.core.content.edit
+import helium314.keyboard.compat.isUserLocked
 import helium314.keyboard.latin.database.ClipboardDao
 import helium314.keyboard.latin.settings.Settings
 import kotlinx.serialization.Serializable
@@ -15,27 +16,42 @@ data class Snippet(val text: String, val label: String? = null, val shortcut: St
 
 enum class ShortcutError { INVALID_CHARACTERS, IN_USE }
 
-/** Snippets are stored as JSON in a pref, so they are part of backups. */
+/**
+ * Snippets are stored as JSON in a pref, so they are part of backups. It's in credential-protected storage like the
+ * clipboard history, so they can't be read before the first unlock after a reboot, and there are none until then.
+ */
 object Snippets {
     // parsed list for the pref string it came from, shortcuts are looked up for every typed word
     @Volatile private var cache: Pair<String, List<Snippet>>? = null
 
     @Synchronized
     fun get(context: Context): List<Snippet> {
-        val json = context.prefs().getString(Settings.PREF_SNIPPETS, null) ?: return copyClipboardSnippets(context)
+        if (isUserLocked(context)) return emptyList()
+        moveFromDeviceProtectedPrefs(context)
+        val json = context.protectedPrefs().getString(Settings.PREF_SNIPPETS, null) ?: return copyClipboardSnippets(context)
         cache?.let { if (it.first == json) return it.second }
+        // not logging the exception, its message contains part of the snippet text
         val snippets = runCatching { Json.decodeFromString<List<Snippet>>(json) }
-            .onFailure { Log.w(TAG, "can't read snippets", it) }.getOrDefault(emptyList())
+            .onFailure { Log.w(TAG, "can't read snippets: ${it.javaClass.simpleName}") }.getOrDefault(emptyList())
         cache = json to snippets
         return snippets
     }
 
     fun save(context: Context, snippets: List<Snippet>) {
-        context.prefs().edit { putString(Settings.PREF_SNIPPETS, Json.encodeToString(snippets)) }
+        context.protectedPrefs().edit { putString(Settings.PREF_SNIPPETS, Json.encodeToString(snippets)) }
+    }
+
+    // Snippets were in the device-protected prefs before, and are again after restoring an older backup.
+    // So a snippets pref there is always newer than the one in protected prefs.
+    private fun moveFromDeviceProtectedPrefs(context: Context) {
+        val json = context.prefs().getString(Settings.PREF_SNIPPETS, null) ?: return
+        context.protectedPrefs().edit(commit = true) { putString(Settings.PREF_SNIPPETS, json) }
+        context.prefs().edit { remove(Settings.PREF_SNIPPETS) }
     }
 
     /** Adds [text] at the end, unless it's blank or already saved. Returns whether it was added. */
     fun add(context: Context, text: String): Boolean {
+        if (isUserLocked(context)) return false
         val snippets = get(context)
         if (text.isBlank() || snippets.any { it.text.trim() == text.trim() }) return false
         save(context, snippets + Snippet(text))

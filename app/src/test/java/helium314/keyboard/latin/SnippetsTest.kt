@@ -10,6 +10,7 @@ import helium314.keyboard.latin.utils.ShortcutError
 import helium314.keyboard.latin.utils.Snippet
 import helium314.keyboard.latin.utils.Snippets
 import helium314.keyboard.latin.utils.prefs
+import helium314.keyboard.latin.utils.protectedPrefs
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import kotlin.test.BeforeTest
@@ -25,6 +26,15 @@ class SnippetsTest {
     @BeforeTest fun reset() {
         dao.clear()
         context.prefs().edit { remove(Settings.PREF_SNIPPETS) }
+        context.protectedPrefs().edit { remove(Settings.PREF_SNIPPETS) }
+    }
+
+    @Test fun `snippets are moved out of device-protected prefs, which win after restoring an older backup`() {
+        Snippets.save(context, listOf(Snippet("Cheers")))
+        context.prefs().edit { putString(Settings.PREF_SNIPPETS, """[{"text":"Best regards"}]""") }
+        assertEquals(listOf(Snippet("Best regards")), Snippets.get(context))
+        assertNull(context.prefs().getString(Settings.PREF_SNIPPETS, null))
+        assert(context.protectedPrefs().getString(Settings.PREF_SNIPPETS, null)!!.contains("Best regards"))
     }
 
     @Test fun `shortcut is matched ignoring case and suggests the trimmed text`() {
