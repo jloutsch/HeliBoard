@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package helium314.keyboard.latin
 
+import android.text.InputType
+import android.view.inputmethod.EditorInfo
 import androidx.core.content.edit
 import helium314.keyboard.ShadowBinaryDictionaryUtils
 import helium314.keyboard.ShadowInputMethodManager2
@@ -611,11 +613,10 @@ class SuggestTest {
         Snippets.save(latinIME, listOf(Snippet("because", shortcut = "bc")))
         assert(!getSuggestedWords(false, "bc", CapsMode.OFF).mWillAutoCorrect)
 
-        // the test has no text field, so auto-correction (and with it expanding) needs to be allowed in all fields
-        latinIME.prefs().edit {
-            putBoolean(Settings.PREF_EXPAND_SNIPPETS, true)
-            putBoolean(Settings.PREF_MORE_AUTO_CORRECTION, true)
-        }
+        // the test has no text field, snippets are only expanded in text fields
+        val field = EditorInfo().apply { inputType = InputType.TYPE_CLASS_TEXT }
+        Settings.getInstance().loadSettings(latinIME, Locale.ENGLISH, InputAttributes(field, false, latinIME.packageName))
+        latinIME.prefs().edit { putBoolean(Settings.PREF_EXPAND_SNIPPETS, true) }
         val result = getSuggestedWords(false, "bc", CapsMode.OFF)
         assert(result.mWillAutoCorrect)
         assertEquals("because", result.getInfo(SuggestedWords.INDEX_OF_AUTO_CORRECTION).mWord)
