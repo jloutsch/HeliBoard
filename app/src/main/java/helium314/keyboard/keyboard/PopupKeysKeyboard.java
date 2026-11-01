@@ -97,15 +97,17 @@ public final class PopupKeysKeyboard extends Keyboard {
                 leftKeys = numLeftKeys;
                 rightKeys = numRightKeys;
             }
+            // With a fixed order the popup keys are placed as defined, so they may extend to the
+            // keyboard edge, e.g. over a key next to the parent key, instead of being shifted inward.
             // If the left keys fill the left side of the parent key, entire popup keys keyboard
             // should be shifted to the right unless the parent key is on the left edge.
-            if (maxLeftKeys == leftKeys && leftKeys > 0) {
+            if (!isPopupKeysFixedOrder && maxLeftKeys == leftKeys && leftKeys > 0) {
                 leftKeys--;
                 rightKeys++;
             }
             // If the right keys fill the right side of the parent key, entire popup keys
             // should be shifted to the left unless the parent key is on the right edge.
-            if (maxRightKeys == rightKeys - 1 && rightKeys > 1) {
+            if (!isPopupKeysFixedOrder && maxRightKeys == rightKeys - 1 && rightKeys > 1) {
                 leftKeys++;
                 rightKeys--;
             }
