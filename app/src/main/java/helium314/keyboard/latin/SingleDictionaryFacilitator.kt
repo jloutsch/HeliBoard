@@ -2,7 +2,6 @@
 package helium314.keyboard.latin
 
 import android.content.Context
-import android.util.LruCache
 import helium314.keyboard.keyboard.Keyboard
 import helium314.keyboard.keyboard.KeyboardSwitcher
 import helium314.keyboard.keyboard.emoji.SupportedEmojis
@@ -50,14 +49,14 @@ class SingleDictionaryFacilitator(private val dict: Dictionary) : DictionaryFaci
             NgramContext.getEmptyPrevWordsContext(0),
             KeyboardSwitcher.getInstance().keyboard!!, // looks like actual keyboard doesn't matter (composed data doesn't contain coordinates)
             SettingsValuesForSuggestion(false, false),
-            Suggest.SESSION_ID_TYPING, SuggestedWords.INPUT_STYLE_TYPING
+            Suggest.SESSION_ID_TYPING, InputStyle.TYPING
         )
         return suggestionResults
     }
 
     override fun getSuggestionResults(
         composedData: ComposedData, ngramContext: NgramContext, keyboard: Keyboard,
-        settingsValuesForSuggestion: SettingsValuesForSuggestion, sessionId: Int, inputStyle: Int
+        settingsValuesForSuggestion: SettingsValuesForSuggestion, sessionId: Int, inputStyle: InputStyle
     ): SuggestionResults {
         val suggestionResults = SuggestionResults(SuggestedWords.MAX_SUGGESTIONS, ngramContext, false)
         suggestionResults.addAll(
@@ -74,10 +73,6 @@ class SingleDictionaryFacilitator(private val dict: Dictionary) : DictionaryFaci
     fun getWordProperty(word: String): WordProperty? = dict.getWordProperty(word, false)
 
     // ------------ dummy functionality ----------------
-
-    override fun setValidSpellingWordReadCache(cache: LruCache<String, Boolean>) {}
-
-    override fun setValidSpellingWordWriteCache(cache: LruCache<String, Boolean>) {}
 
     override fun isForLocale(locale: Locale?): Boolean = locale == dict.mLocale
 
@@ -138,7 +133,7 @@ class SingleDictionaryFacilitator(private val dict: Dictionary) : DictionaryFaci
         interface SuggestionLogger {
             /** provides input data and suggestions returned by the library */
             fun onNewSuggestions(suggestions: SuggestionResults, composedData: ComposedData,
-                                 ngramContext: NgramContext, keyboard: Keyboard, inputStyle: Int)
+                                 ngramContext: NgramContext, keyboard: Keyboard, inputStyle: InputStyle)
         }
     }
 }

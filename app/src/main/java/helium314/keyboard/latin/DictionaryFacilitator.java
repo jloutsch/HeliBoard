@@ -7,7 +7,6 @@
 package helium314.keyboard.latin;
 
 import android.content.Context;
-import android.util.LruCache;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -43,12 +42,6 @@ public interface DictionaryFacilitator {
             Dictionary.TYPE_APPS,
             Dictionary.TYPE_USER_HISTORY,
             Dictionary.TYPE_USER};
-
-    /** The facilitator will put words into the cache whenever it decodes them. */
-    void setValidSpellingWordReadCache(final LruCache<String, Boolean> cache);
-
-    /** The facilitator will get words from the cache whenever it needs to check their spelling. */
-    void setValidSpellingWordWriteCache(final LruCache<String, Boolean> cache);
 
     /**
      * Returns whether this facilitator is exactly for this locale.
@@ -133,10 +126,10 @@ public interface DictionaryFacilitator {
     /** completely removes the word from user history (currently not if event is a backspace event) */
     void unlearnFromUserHistory(String word, @NonNull NgramContext ngramContext, long timeStampInSeconds, UnlearnEvent event);
 
-    @NonNull SuggestionResults getSuggestionResults(final ComposedData composedData,
-            final NgramContext ngramContext, @NonNull final Keyboard keyboard,
-            final SettingsValuesForSuggestion settingsValuesForSuggestion, final int sessionId,
-            final int inputStyle);
+    @NonNull SuggestionResults getSuggestionResults(ComposedData composedData,
+            NgramContext ngramContext, @NonNull Keyboard keyboard,
+            SettingsValuesForSuggestion settingsValuesForSuggestion, int sessionId,
+            InputStyle inputStyle);
 
     boolean isValidSpellingWord(final String word);
 
