@@ -8,7 +8,6 @@ package helium314.keyboard.latin
 import android.Manifest
 import android.content.Context
 import android.provider.UserDictionary
-import android.util.LruCache
 import helium314.keyboard.keyboard.Keyboard
 import helium314.keyboard.keyboard.emoji.SupportedEmojis
 import helium314.keyboard.latin.DictionaryFacilitator.DictionaryInitializationListener
@@ -65,12 +64,6 @@ class DictionaryFacilitatorImpl : DictionaryFacilitator {
     @Volatile
     private var mLatchForWaitingLoadingMainDictionaries = CountDownLatch(0)
 
-    // todo: write cache never set, and never read (only written)
-    //  tried to use read cache for a while, but small performance improvements are not worth the work,
-    //  see https://github.com/HeliBorg/HeliBoard/issues/307
-    private var mValidSpellingWordReadCache: LruCache<String, Boolean>? = null
-    private var mValidSpellingWordWriteCache: LruCache<String, Boolean>? = null
-
     /*
      * Adding words to history is delayed by unlearnDuration.
      * Waiting words and the jobs actually adding the words are placed in a map, so
@@ -87,14 +80,6 @@ class DictionaryFacilitatorImpl : DictionaryFacilitator {
     private val unlearnDuration = 25.seconds
 
     private val scope = CoroutineScope(Dispatchers.Default)
-
-    override fun setValidSpellingWordReadCache(cache: LruCache<String, Boolean>) {
-        mValidSpellingWordReadCache = cache
-    }
-
-    override fun setValidSpellingWordWriteCache(cache: LruCache<String, Boolean>) {
-        mValidSpellingWordWriteCache = cache
-    }
 
     // judging by usage before adding multilingual typing, this should check primary group locale only
     override fun isForLocale(locale: Locale?): Boolean {
@@ -177,9 +162,6 @@ class DictionaryFacilitatorImpl : DictionaryFacilitator {
                 dictGroupToCleanup.closeDict(dictType)
             }
         }
-
-        mValidSpellingWordWriteCache?.evictAll()
-        mValidSpellingWordReadCache?.evictAll()
     }
 
     /** creates dictionaryGroups for [newLocales] with given [newSubDictTypes], trying to re-use existing dictionaries.
@@ -301,10 +283,6 @@ class DictionaryFacilitatorImpl : DictionaryFacilitator {
         suggestion: String, wasAutoCapitalized: Boolean, ngramContext: NgramContext,
         timeStampInSeconds: Long, blockPotentiallyOffensive: Boolean
     ) {
-        // Update the spelling cache before learning. Words that are not yet added to user history
-        // and appear in no other language model are not considered valid.
-        putWordIntoValidSpellingWordCache("addToUserHistory", suggestion)
-
         val words = suggestion.splitOnWhitespace().dropLastWhile { it.isEmpty() }
 
         if (wasAutoCapitalized && !ngramContext.isBeginningOfSentenceContext)
@@ -324,9 +302,8 @@ class DictionaryFacilitatorImpl : DictionaryFacilitator {
         var ngramContextForCurrentWord = ngramContext
         for (i in words.indices) {
             val currentWord = words[i]
-            val isBeginningOfSentence = ngramContextForCurrentWord.isBeginningOfSentenceContext
             val wasCurrentWordAutoCapitalized = (i == 0) && wasAutoCapitalized
-            val dictGroup = findDictGroupForAddingWord(currentWord, wasCurrentWordAutoCapitalized || isBeginningOfSentence)
+            val dictGroup = findDictGroupForAddingWord(currentWord, wasCurrentWordAutoCapitalized, ngramContextForCurrentWord.isBeginningOfSentenceContext)
                 ?: continue
             // add to history for preferred dictionary group, to avoid mixing languages in history
             addWordToUserHistory(
@@ -341,10 +318,11 @@ class DictionaryFacilitatorImpl : DictionaryFacilitator {
             adjustConfidences(suggestion, wasAutoCapitalized)
     }
 
-    private fun findDictGroupForAddingWord(word: String, wasAutoCapitalizedOrIsBeginningOfSentence: Boolean): DictionaryGroup? {
+    private fun findDictGroupForAddingWord(word: String, wasAutoCapitalized: Boolean, isBeginningOfSentence: Boolean): DictionaryGroup? {
         if (dictionaryGroups.size == 1) return dictionaryGroups[0]
         val requiredConfidence = currentlyPreferredDictionaryGroup.confidence - 1
-        val maybe = dictionaryGroups.filter { it.confidence >= requiredConfidence }
+        val maybe = if (isBeginningOfSentence) dictionaryGroups // we expect user is more likely to switch language here, so we consider all groups
+            else dictionaryGroups.filter { it.confidence >= requiredConfidence } // avoid potentially unwanted switches in the middle of a sentence
         if (maybe.isEmpty()) return null
 
         // if we're considering only a single locale, use that
@@ -353,7 +331,7 @@ class DictionaryFacilitatorImpl : DictionaryFacilitator {
 
         // we could try finding the most suitable dict group if the word was capitalized too,
         // but that's a lot of effort and danger of adding words incorrectly for little gain (todo: maybe later)
-        return if (wasAutoCapitalizedOrIsBeginningOfSentence && Character.isUpperCase(word.codePointAt(0))) null
+        return if ((wasAutoCapitalized || isBeginningOfSentence) && Character.isUpperCase(word.codePointAt(0))) null
         else maybe.filter { isValidWord(word, DictionaryFacilitator.ALL_DICTIONARY_TYPES, it) }
             .maxByOrNull { it.confidence }
     }
@@ -470,25 +448,14 @@ class DictionaryFacilitatorImpl : DictionaryFacilitator {
         }
     }
 
-    private fun putWordIntoValidSpellingWordCache(caller: String, originalWord: String) {
-        if (mValidSpellingWordWriteCache == null)
-            return
-
-        val lowerCaseWord = originalWord.lowercase(currentLocale)
-        val lowerCaseValid = isValidSpellingWord(lowerCaseWord)
-        mValidSpellingWordWriteCache?.put(lowerCaseWord, lowerCaseValid)
-
-        val capitalWord = StringUtils.capitalizeFirstAndDowncaseRest(originalWord, currentLocale)
-        val capitalValid = if (lowerCaseValid) {
-            true // The lower case form of the word is valid, so the upper case must be valid.
-        } else {
-            isValidSpellingWord(capitalWord)
-        }
-        mValidSpellingWordWriteCache?.put(capitalWord, capitalValid)
-    }
-
     override fun adjustConfidences(word: String, wasAutoCapitalized: Boolean) {
         if (dictionaryGroups.size == 1 || word.contains(Constants.WORD_SEPARATOR))
+            return
+
+        // if the exact word is in contacts or apps, do nothing because it's in all dict groups
+        // increasing all confidences may result in more prominent suggestions for currently unwanted locales
+        // (ideally: same if the word is in the no-language personal dict, but we don't have that information ready)
+        if (isValidWord(word, arrayOf(Dictionary.TYPE_APPS, Dictionary.TYPE_CONTACTS), dictionaryGroups[0]))
             return
 
         // if suggestion was auto-capitalized, check against both the suggestion and the de-capitalized suggestion
@@ -528,16 +495,12 @@ class DictionaryFacilitatorImpl : DictionaryFacilitator {
                     timeStampInSeconds: Long, event: DictionaryFacilitator.UnlearnEvent) {
         val job = synchronized(wordsWaitingForHistory) { wordsWaitingForHistory.remove(word) } ?: return
         job.cancel()
-
-        // Update the spelling cache after unlearning. Words that are removed from user history
-        // and appear in no other language model are not considered valid.
-        putWordIntoValidSpellingWordCache("unlearnFromUserHistory", word.lowercase(Locale.getDefault()))
     }
 
     // TODO: Revise the way to fusion suggestion results.
     override fun getSuggestionResults(
         composedData: ComposedData, ngramContext: NgramContext, keyboard: Keyboard,
-        settingsValuesForSuggestion: SettingsValuesForSuggestion, sessionId: Int, inputStyle: Int
+        settingsValuesForSuggestion: SettingsValuesForSuggestion, sessionId: Int, inputStyle: InputStyle
     ): SuggestionResults {
         val proximityInfoHandle = keyboard.proximityInfo.nativeProximityInfo
         val weightOfLangModelVsSpatialModel = floatArrayOf(Dictionary.NOT_A_WEIGHT_OF_LANG_MODEL_VS_SPATIAL_MODEL)
@@ -615,12 +578,8 @@ class DictionaryFacilitatorImpl : DictionaryFacilitator {
     // Spell checker is using this, and has its own instance of DictionaryFacilitatorImpl,
     // meaning that it always has default mConfidence. So we cannot choose to only check preferred
     // locale, and instead simply return true if word is in any of the available dictionaries
-    override fun isValidSpellingWord(word: String): Boolean {
-        mValidSpellingWordReadCache?.get(word)?.let { return it }
-        val result = dictionaryGroups.any { isValidWord(word, DictionaryFacilitator.ALL_DICTIONARY_TYPES, it) }
-        mValidSpellingWordReadCache?.put(word, result)
-        return result
-    }
+    override fun isValidSpellingWord(word: String): Boolean =
+        dictionaryGroups.any { isValidWord(word, DictionaryFacilitator.ALL_DICTIONARY_TYPES, it) }
 
     // this is unused, so leave it for now (redirecting to isValidWord seems to defeat the purpose...)
     override fun isValidSuggestionWord(word: String): Boolean {
