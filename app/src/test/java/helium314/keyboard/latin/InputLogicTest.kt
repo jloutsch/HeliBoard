@@ -20,6 +20,7 @@ import helium314.keyboard.keyboard.MainKeyboardView
 import helium314.keyboard.keyboard.internal.keyboard_parser.floris.KeyCode
 import helium314.keyboard.latin.ShadowFacilitator2.Companion.lastAddedWord
 import helium314.keyboard.latin.common.Constants
+import helium314.keyboard.latin.common.CoordinateUtils
 import helium314.keyboard.latin.common.LocaleUtils.constructLocale
 import helium314.keyboard.latin.common.StringUtils
 import helium314.keyboard.latin.dictionary.Dictionary
@@ -723,6 +724,37 @@ class InputLogicTest {
 
         // todo: now we want some way to disable delete-all on backspace, either per setting or something else
         //  need to avoid getting into the mWordComposer.isBatchMode() part of handleBackspaceEvent
+    }
+
+    @Test fun `delete last letter of glide typing word with setting`() {
+        latinIME.prefs().edit { putBoolean(Settings.PREF_GESTURE_BACKSPACE_DELETES_LETTER, true) }
+        glideTypingInput("avert")
+        functionalKeyPress(KeyCode.DELETE)
+        assertEquals("aver", text)
+        assertEquals("aver", composingText)
+        input('y')
+        assertEquals("avery", text)
+        input(' ')
+        assertEquals("avery ", text)
+    }
+
+    @Test fun `word set after deleting a letter of a glide typing word is not resumed`() {
+        // resumed words are never auto-corrected, the fixed word should be auto-corrected like a typed one
+        val codePoints = StringUtils.toCodePointArray("aver")
+        val coordinates = CoordinateUtils.newCoordinateArray(codePoints.size, Constants.NOT_A_COORDINATE, Constants.NOT_A_COORDINATE)
+        val wordComposer = WordComposer()
+        wordComposer.setComposingWord(codePoints, coordinates, false)
+        assertEquals("aver", wordComposer.typedWord)
+        assertEquals(false, wordComposer.isResumed)
+        wordComposer.setComposingWord(codePoints, coordinates)
+        assertEquals(true, wordComposer.isResumed)
+    }
+
+    @Test fun `delete word key still deletes whole glide typing word with setting`() {
+        latinIME.prefs().edit { putBoolean(Settings.PREF_GESTURE_BACKSPACE_DELETES_LETTER, true) }
+        glideTypingInput("avert")
+        functionalKeyPress(KeyCode.DELETE_WORD)
+        assertEquals("", text)
     }
 
     @Test fun timestamp() {

@@ -305,6 +305,11 @@ public final class WordComposer {
      * @param coordinates the x, y coordinates of the key in the CoordinateUtils format
      */
     public void setComposingWord(final int[] codePoints, final int[] coordinates) {
+        setComposingWord(codePoints, coordinates, true);
+    }
+
+    /** @param resumed false to auto-correct the word like one typed from the start */
+    public void setComposingWord(final int[] codePoints, final int[] coordinates, final boolean resumed) {
         reset();
         final int length = codePoints.length;
         for (int i = 0; i < length; ++i) {
@@ -315,7 +320,7 @@ public final class WordComposer {
                     );
             applyProcessedEvent(processedEvent);
         }
-        mIsResumed = true;
+        mIsResumed = resumed;
     }
 
     /**
