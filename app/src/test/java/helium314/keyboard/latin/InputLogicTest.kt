@@ -20,6 +20,7 @@ import helium314.keyboard.keyboard.MainKeyboardView
 import helium314.keyboard.keyboard.internal.keyboard_parser.floris.KeyCode
 import helium314.keyboard.latin.ShadowFacilitator2.Companion.lastAddedWord
 import helium314.keyboard.latin.common.Constants
+import helium314.keyboard.latin.common.CoordinateUtils
 import helium314.keyboard.latin.common.LocaleUtils.constructLocale
 import helium314.keyboard.latin.common.StringUtils
 import helium314.keyboard.latin.dictionary.Dictionary
@@ -734,7 +735,19 @@ class InputLogicTest {
         input('y')
         assertEquals("avery", text)
         input(' ')
-        assertEquals("avery ", text) // fixed by hand, so no auto-correction
+        assertEquals("avery ", text)
+    }
+
+    @Test fun `word set after deleting a letter of a glide typing word is not resumed`() {
+        // resumed words are never auto-corrected, the fixed word should be auto-corrected like a typed one
+        val codePoints = StringUtils.toCodePointArray("aver")
+        val coordinates = CoordinateUtils.newCoordinateArray(codePoints.size, Constants.NOT_A_COORDINATE, Constants.NOT_A_COORDINATE)
+        val wordComposer = WordComposer()
+        wordComposer.setComposingWord(codePoints, coordinates, false)
+        assertEquals("aver", wordComposer.typedWord)
+        assertEquals(false, wordComposer.isResumed)
+        wordComposer.setComposingWord(codePoints, coordinates)
+        assertEquals(true, wordComposer.isResumed)
     }
 
     @Test fun `delete word key still deletes whole glide typing word with setting`() {

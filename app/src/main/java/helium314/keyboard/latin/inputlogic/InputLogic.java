@@ -1298,11 +1298,12 @@ public final class InputLogic {
             if (mWordComposer.isBatchMode() && sv.mGestureBackspaceDeletesLetter && !deleteWord
                     && mWordComposer.getTypedWord().codePointCount(0, mWordComposer.getTypedWord().length()) > 1) {
                 // keep the swiped word without its last letter, so it can be fixed by typing
+                // and auto-corrected like a typed word
                 final int[] codePoints = StringUtils.toCodePointArray(mWordComposer.getTypedWord());
                 final int[] remaining = Arrays.copyOf(codePoints, codePoints.length - 1);
                 if (GestureDataGatheringKt.useBackgroundGathering)
                     BackgroundGatheringCache.INSTANCE.onRejectedSuggestion(mWordComposer.getTypedWord());
-                mWordComposer.setComposingWord(remaining, getCoordinatesForCurrentKeyboard(remaining));
+                mWordComposer.setComposingWord(remaining, getCoordinatesForCurrentKeyboard(remaining), false);
                 StatsUtils.onBackspacePressed(1);
             } else if (mWordComposer.isBatchMode()) {
                 final String rejectedSuggestion = mWordComposer.getTypedWord();
