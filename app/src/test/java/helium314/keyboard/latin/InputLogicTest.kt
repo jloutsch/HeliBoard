@@ -725,6 +725,25 @@ class InputLogicTest {
         //  need to avoid getting into the mWordComposer.isBatchMode() part of handleBackspaceEvent
     }
 
+    @Test fun `delete last letter of glide typing word with setting`() {
+        latinIME.prefs().edit { putBoolean(Settings.PREF_GESTURE_BACKSPACE_DELETES_LETTER, true) }
+        glideTypingInput("avert")
+        functionalKeyPress(KeyCode.DELETE)
+        assertEquals("aver", text)
+        assertEquals("aver", composingText)
+        input('y')
+        assertEquals("avery", text)
+        input(' ')
+        assertEquals("avery ", text) // fixed by hand, so no auto-correction
+    }
+
+    @Test fun `delete word key still deletes whole glide typing word with setting`() {
+        latinIME.prefs().edit { putBoolean(Settings.PREF_GESTURE_BACKSPACE_DELETES_LETTER, true) }
+        glideTypingInput("avert")
+        functionalKeyPress(KeyCode.DELETE_WORD)
+        assertEquals("", text)
+    }
+
     @Test fun timestamp() {
         chainInput("hello")
         functionalKeyPress(KeyCode.TIMESTAMP)

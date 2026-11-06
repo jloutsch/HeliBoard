@@ -115,6 +115,7 @@ public class SettingsValues {
     public final boolean mGestureFloatingPreviewDynamicEnabled;
     public final int mGestureFastTypingCooldown;
     public final boolean mGestureSwipedWordInCenter;
+    public final boolean mGestureBackspaceDeletesLetter;
     public final int mGestureTrailFadeoutDuration;
     public final boolean mSlidingKeyInputPreviewEnabled;
     public final int mKeyLongpressTimeout;
@@ -267,6 +268,7 @@ public class SettingsValues {
         mGestureFloatingPreviewDynamicEnabled = Settings.readGestureDynamicPreviewEnabled(prefs);
         mGestureFastTypingCooldown = prefs.getInt(Settings.PREF_GESTURE_FAST_TYPING_COOLDOWN, Defaults.PREF_GESTURE_FAST_TYPING_COOLDOWN);
         mGestureSwipedWordInCenter = prefs.getBoolean(Settings.PREF_GESTURE_SWIPED_WORD_IN_CENTER, Defaults.PREF_GESTURE_SWIPED_WORD_IN_CENTER);
+        mGestureBackspaceDeletesLetter = prefs.getBoolean(Settings.PREF_GESTURE_BACKSPACE_DELETES_LETTER, Defaults.PREF_GESTURE_BACKSPACE_DELETES_LETTER);
         mGestureTrailFadeoutDuration = prefs.getInt(Settings.PREF_GESTURE_TRAIL_FADEOUT_DURATION, Defaults.PREF_GESTURE_TRAIL_FADEOUT_DURATION);
         mSuggestionStripHiddenPerUserSettings = mToolbarMode == ToolbarMode.HIDDEN || mToolbarMode == ToolbarMode.TOOLBAR_KEYS;
         mOverrideShowingSuggestions = mInputAttributes.mMayOverrideShowingSuggestions

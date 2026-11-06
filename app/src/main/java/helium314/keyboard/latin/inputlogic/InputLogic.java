@@ -78,6 +78,7 @@ import helium314.keyboard.latin.utils.TextPlacement;
 import helium314.keyboard.latin.utils.TimestampKt;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.TreeSet;
@@ -1294,7 +1295,16 @@ public final class InputLogic {
             // When we exit this if-clause, mWordComposer.isComposingWord() will return false.
         }
         if (mWordComposer.isComposingWord()) {
-            if (mWordComposer.isBatchMode()) {
+            if (mWordComposer.isBatchMode() && sv.mGestureBackspaceDeletesLetter && !deleteWord
+                    && mWordComposer.getTypedWord().codePointCount(0, mWordComposer.getTypedWord().length()) > 1) {
+                // keep the swiped word without its last letter, so it can be fixed by typing
+                final int[] codePoints = StringUtils.toCodePointArray(mWordComposer.getTypedWord());
+                final int[] remaining = Arrays.copyOf(codePoints, codePoints.length - 1);
+                if (GestureDataGatheringKt.useBackgroundGathering)
+                    BackgroundGatheringCache.INSTANCE.onRejectedSuggestion(mWordComposer.getTypedWord());
+                mWordComposer.setComposingWord(remaining, getCoordinatesForCurrentKeyboard(remaining));
+                StatsUtils.onBackspacePressed(1);
+            } else if (mWordComposer.isBatchMode()) {
                 final String rejectedSuggestion = mWordComposer.getTypedWord();
                 if (GestureDataGatheringKt.useBackgroundGathering)
                     BackgroundGatheringCache.INSTANCE.onRejectedSuggestion(rejectedSuggestion);
