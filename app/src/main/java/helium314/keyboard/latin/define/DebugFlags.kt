@@ -58,7 +58,8 @@ $stackTrace
 Last log:
 ${Log.getLog(100).joinToString("\n")}
 """)
-        defaultUncaughtExceptionHandler!!.uncaughtException(t, e)
+        // there is no default handler in unit tests, and throwing here leaves coroutines unfinished
+        defaultUncaughtExceptionHandler?.uncaughtException(t, e)
     }
 
     private fun writeCrashReportToFile(text: String) {

@@ -75,8 +75,6 @@ class ClipboardHistoryView @JvmOverloads constructor(
         val keyboardViewAttr = context.obtainStyledAttributes(attrs, R.styleable.KeyboardView, defStyle, R.style.KeyboardView)
         keyBackgroundId = keyboardViewAttr.getResourceId(R.styleable.KeyboardView_keyBackground, 0)
         keyboardViewAttr.recycle()
-        getEnabledClipboardToolbarKeys(context.prefs())
-            .forEach { toolbarKeys.add(createToolbarKey(context, it)) }
         fitsSystemWindows = true
     }
 
@@ -106,13 +104,14 @@ class ClipboardHistoryView @JvmOverloads constructor(
             clipboardLayoutParams.setListProperties(this)
             placeholderView = this@ClipboardHistoryView.placeholderView
         }
-        val clipboardStrip = KeyboardSwitcher.getInstance().clipboardStrip
+        val clipboardStrip = KeyboardSwitcher.getInstance().clipboardStrip!!
         saveSnippetKey = ImageButton(context, null, R.attr.suggestionWordStyle).apply {
             scaleType = ImageView.ScaleType.CENTER
             setImageResource(R.drawable.sym_keyboard_snippet_save)
             contentDescription = context.getString(R.string.snippet_save)
             isActivated = true // toolbar keys are drawn dimmed when not activated
         }
+        toolbarKeys.addAll(getEnabledClipboardToolbarKeys(context.prefs()).map { createToolbarKey(context, it) })
         (listOf(saveSnippetKey) + toolbarKeys).forEach {
             clipboardStrip.addView(it)
             it.setOnClickListener(this@ClipboardHistoryView)
@@ -286,7 +285,7 @@ class ClipboardHistoryView @JvmOverloads constructor(
     }
 
     override fun onSharedPreferenceChanged(prefs: SharedPreferences?, key: String?) {
-        setToolbarButtonsActivatedStateOnPrefChange(KeyboardSwitcher.getInstance().clipboardStrip, key)
+        setToolbarButtonsActivatedStateOnPrefChange(KeyboardSwitcher.getInstance().clipboardStrip!!, key)
 
         // The setting can only be changed from a settings screen, but adding it to this listener seems necessary: https://github.com/HeliBorg/HeliBoard/pull/1903#issuecomment-3478424606
         if (::clipboardHistoryManager.isInitialized && key == Settings.PREF_CLIPBOARD_HISTORY_PINNED_FIRST) {
