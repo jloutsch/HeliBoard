@@ -11,13 +11,13 @@ import androidx.annotation.NonNull;
 import helium314.keyboard.event.CombinerChain;
 import helium314.keyboard.event.Event;
 import helium314.keyboard.keyboard.internal.keyboard_parser.floris.KeyCode;
-import helium314.keyboard.latin.SuggestedWords.SuggestedWordInfo;
 import helium314.keyboard.latin.common.ComposedData;
 import helium314.keyboard.latin.common.CoordinateUtils;
 import helium314.keyboard.latin.common.InputPointers;
 import helium314.keyboard.latin.common.StringUtils;
 import helium314.keyboard.latin.define.DebugFlags;
 import helium314.keyboard.latin.define.DecoderSpecificConstants;
+import helium314.keyboard.latin.suggestions.SuggestedWordInfo;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -305,6 +305,11 @@ public final class WordComposer {
      * @param coordinates the x, y coordinates of the key in the CoordinateUtils format
      */
     public void setComposingWord(final int[] codePoints, final int[] coordinates) {
+        setComposingWord(codePoints, coordinates, true);
+    }
+
+    /** @param resumed false to auto-correct the word like one typed from the start */
+    public void setComposingWord(final int[] codePoints, final int[] coordinates, final boolean resumed) {
         reset();
         final int length = codePoints.length;
         for (int i = 0; i < length; ++i) {
@@ -315,7 +320,7 @@ public final class WordComposer {
                     );
             applyProcessedEvent(processedEvent);
         }
-        mIsResumed = true;
+        mIsResumed = resumed;
     }
 
     /**

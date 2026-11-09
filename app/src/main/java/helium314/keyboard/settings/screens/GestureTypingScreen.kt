@@ -50,6 +50,8 @@ fun GestureTypingScreen(
             Settings.PREF_GESTURE_FAST_TYPING_COOLDOWN else null,
         if (gestureEnabled)
             Settings.PREF_GESTURE_SWIPED_WORD_IN_CENTER else null,
+        if (gestureEnabled)
+            Settings.PREF_GESTURE_BACKSPACE_DELETES_LETTER else null,
         if (gestureEnabled &&
             (prefs.getBoolean(Settings.PREF_GESTURE_PREVIEW_TRAIL, Defaults.PREF_GESTURE_PREVIEW_TRAIL) || gestureFloatingPreviewEnabled))
             Settings.PREF_GESTURE_TRAIL_FADEOUT_DURATION else null
@@ -94,6 +96,11 @@ fun createGestureTypingSettings(context: Context) = listOf(
         R.string.gesture_swiped_word_in_center, R.string.gesture_swiped_word_in_center_summary)
     {
         SwitchPreference(it, Defaults.PREF_GESTURE_SWIPED_WORD_IN_CENTER)
+    },
+    Setting(context, Settings.PREF_GESTURE_BACKSPACE_DELETES_LETTER,
+        R.string.gesture_backspace_deletes_letter, R.string.gesture_backspace_deletes_letter_summary)
+    {
+        SwitchPreference(it, Defaults.PREF_GESTURE_BACKSPACE_DELETES_LETTER)
     },
     Setting(context, Settings.PREF_GESTURE_FAST_TYPING_COOLDOWN, R.string.gesture_fast_typing_cooldown) { def ->
         SliderPreference(
