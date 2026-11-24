@@ -29,6 +29,7 @@ import helium314.keyboard.latin.suggestions.SuggestedWordInfo.Companion.KIND_WHI
 import helium314.keyboard.latin.suggestions.SuggestionResults
 import helium314.keyboard.latin.utils.Snippet
 import helium314.keyboard.latin.utils.Snippets
+import helium314.keyboard.latin.utils.TextAtCursor
 import helium314.keyboard.latin.utils.prefs
 import org.junit.runner.RunWith
 import org.robolectric.Robolectric
@@ -281,6 +282,18 @@ class SuggestTest {
             confidenceAggressive
         )
         assert(!result.last()) // should not be corrected
+    }
+
+    @Test fun `letters directly after a digit are not auto-corrected`() {
+        enableAutocorrect(confidenceVeryAggressive)
+        tapTypingSuggestions = suggestionResults(listOf(suggestion("and", 650000, currentTypingLocale)))
+        assert(getSuggestedWords(false, "nd", CapsMode.OFF, textAtCursor = TextAtCursor("the nd", 6)).willAutoCorrect)
+
+        // in "2nd" only "nd" is the composing word, the word composer does not know about the digit
+        tapTypingSuggestions = suggestionResults(listOf(suggestion("and", 650000, currentTypingLocale)))
+        val results = getSuggestedWords(false, "nd", CapsMode.OFF, textAtCursor = TextAtCursor("the 2nd", 7))
+        assert(!results.willAutoCorrect)
+        assertEquals(listOf("nd", "and"), results.suggestedWordInfoList.map { it.word })
     }
 
     @Test fun `typed word is first suggestion`() { // first suggestion will not be shown to the user
@@ -627,7 +640,8 @@ class SuggestTest {
         assert(!getSuggestedWords(false, "bc", CapsMode.OFF, resumed = true).willAutoCorrect)
     }
 
-    private fun getSuggestedWords(gesture: Boolean, typedWord: String, capsMode: CapsMode, resumed: Boolean = false): SuggestedWords {
+    private fun getSuggestedWords(gesture: Boolean, typedWord: String, capsMode: CapsMode, resumed: Boolean = false,
+                                  textAtCursor: TextAtCursor? = null): SuggestedWords {
         val wc = WordComposer()
         if (gesture) wc.setBatchInputPointers(InputPointers(1))
         if (resumed) { // like after reverting an auto-correction, or moving the cursor into a word
@@ -657,7 +671,7 @@ class SuggestTest {
 
         suggest.clearNextWordSuggestionsCache()
         return suggest.getSuggestedWords(
-            wc, null, NgramContext.EMPTY_PREV_WORDS_INFO, Keyboard(params), Settings.getValues().mSettingsValuesForSuggestion,
+            wc, textAtCursor, NgramContext.EMPTY_PREV_WORDS_INFO, Keyboard(params), Settings.getValues().mSettingsValuesForSuggestion,
             Settings.getValues().mAutoCorrectEnabled, InputStyle.NONE, 0
         )
     }

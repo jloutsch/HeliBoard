@@ -130,7 +130,8 @@ class Suggest(
                 val suggestionForTypedWord = suggestions.firstOrNull { it.word == capitalizedTypedWord }
                 suggestionForFirstInContainer to suggestionForTypedWord
             },
-            isCorrectionEnabled,
+            // like for words with digits: no auto-correction, e.g. "nd" in "2nd" should not become "and"
+            isCorrectionEnabled && !isDirectlyAfterDigit(typedWordString, textAtCursor),
             wordComposer,
             suggestionResults,
             firstOccurrenceOfTypedWordInSuggestions,
@@ -406,6 +407,14 @@ class Suggest(
             false, ""), ngramContext, keyboard, settingsValuesForSuggestion, SESSION_ID_TYPING, inputStyle)
         nextWordSuggestionsCache[ngramContext] = newResults
         return newResults
+    }
+
+    // digits are not part of the composing word, so wordComposer.hasDigits is false for the "nd" in "2nd"
+    private fun isDirectlyAfterDigit(typedWord: String, textAtCursor: TextAtCursor?): Boolean {
+        val text = textAtCursor?.text ?: return false
+        val wordStart = textAtCursor.cursorPosition - typedWord.length
+        if (typedWord.isEmpty() || wordStart <= 0 || !text.startsWith(typedWord, wordStart)) return false
+        return Character.isDigit(Character.codePointBefore(text, wordStart))
     }
 
     companion object {

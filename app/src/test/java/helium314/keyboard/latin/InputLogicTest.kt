@@ -757,6 +757,41 @@ class InputLogicTest {
         assertEquals("", text)
     }
 
+    // the composing word is only the letters, the suggestion replaces digits + letters
+    @Test fun `picking a suggestion for digits and letters keeps the text before it`() {
+        chainInput("some 3d")
+        assertEquals("d", composingText)
+        pickSuggestion("3D", wordToReplace = "3d")
+        assertEquals("some 3D", text)
+
+        reset()
+        chainInput("the 10th")
+        assertEquals("th", composingText)
+        pickSuggestion("10th", wordToReplace = "10th")
+        assertEquals("the 10th", text)
+    }
+
+    @Test fun `auto-correcting to a suggestion for digits and letters keeps the text before it`() {
+        setInputType(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_AUTO_CORRECT)
+        chainInput("some 3d")
+        getAutocorrectedWithSpaceAfter("3D", "d", wordToReplace = "3d")
+        assertEquals("some 3D ", text)
+    }
+
+    @Test fun `suggestion is committed when the word to replace is not at the cursor`() {
+        chainInput("some d")
+        pickSuggestion("3D", wordToReplace = "3d")
+        assertEquals("some 3D", text)
+    }
+
+    @Test fun `replace word around cursor at start of text`() {
+        setText("3d")
+        setCursorPosition(1)
+        connection.replaceTextAtCursor("3d", "3D", 1)
+        assertEquals("3D", text)
+        checkConnectionConsistency()
+    }
+
     @Test fun timestamp() {
         chainInput("hello")
         functionalKeyPress(KeyCode.TIMESTAMP)
@@ -950,15 +985,17 @@ class InputLogicTest {
 
     private val dict = Dictionary.PhonyDictionary("null")
     // like selecting a suggestion from strip
-    private fun pickSuggestion(suggestion: String) {
+    private fun pickSuggestion(suggestion: String, wordToReplace: String? = null) {
         val info = SuggestedWordInfo(suggestion, "", 0, 0, dict, 0, 0)
+        info.wordToReplace = wordToReplace
         latinIME.pickSuggestionManually(info)
         checkConnectionConsistency()
     }
 
     // only works when autocorrect is on, separator after word is required
-    private fun getAutocorrectedWithSpaceAfter(suggestion: String, typedWord: String, kind: Int = 0) {
+    private fun getAutocorrectedWithSpaceAfter(suggestion: String, typedWord: String, kind: Int = 0, wordToReplace: String? = null) {
         val info = SuggestedWordInfo(suggestion, "", 0, kind, dict, 0, 0)
+        info.wordToReplace = wordToReplace
         val typedInfo = SuggestedWordInfo(typedWord, "", 0, 0, dict, 0, 0)
         val sw = SuggestedWords(ArrayList(listOf(typedInfo, info)), null, typedInfo, false, true, false, InputStyle.NONE, 0)
         latinIME.mInputLogic.setSuggestedWords(sw) // this prepares for autocorrect

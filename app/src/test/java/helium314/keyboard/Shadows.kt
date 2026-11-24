@@ -254,27 +254,25 @@ class ShadowInputMethodService {
         // chars, not codepoints or glyphs
         // todo: may delete only one half of a surrogate pair, but this should be avoided by RichInputConnection (maybe throw error)
         override fun deleteSurroundingText(beforeLength: Int, afterLength: Int): Boolean {
-            // delete only before or after selection
-            text = textBeforeCursor.substring(0, textBeforeCursor.length - beforeLength) +
-                text.substring(selectionStart, selectionEnd) +
-                textAfterCursor.substring(afterLength)
+            // like BaseInputConnection, delete only outside of selection and composing span:
+            // "before" is counted from whichever starts first, "after" from whichever ends last
+            var keepStart = selectionStart
+            var keepEnd = selectionEnd
+            if (composingStart != -1 && composingEnd != -1) {
+                keepStart = minOf(keepStart, composingStart)
+                keepEnd = maxOf(keepEnd, composingEnd)
+            }
+            val deleteStart = (keepStart - beforeLength).coerceAtLeast(0)
+            val deleteEnd = (keepEnd + afterLength).coerceAtMost(text.length)
+            text = text.substring(0, deleteStart) + text.substring(keepStart, keepEnd) + text.substring(deleteEnd)
 
-            // if parts of the composing span are deleted, shorten the span (set end to shorter)
-            if (selectionStart <= composingStart) {
-                composingStart -= beforeLength // is this correct?
-                composingEnd -= beforeLength
-            } else if (selectionStart <= composingEnd) {
-                composingEnd -= beforeLength // is this correct?
+            val deletedBefore = keepStart - deleteStart
+            if (composingStart != -1 && composingEnd != -1) {
+                composingStart -= deletedBefore
+                composingEnd -= deletedBefore
             }
-            if (selectionEnd <= composingStart) {
-                composingStart -= afterLength
-                composingEnd -= afterLength
-            } else if (selectionEnd <= composingEnd) {
-                composingEnd -= afterLength
-            }
-            // update selection
-            selectionStart -= beforeLength
-            selectionEnd -= beforeLength
+            selectionStart -= deletedBefore
+            selectionEnd -= deletedBefore
             return true
         }
         override fun sendKeyEvent(p0: KeyEvent): Boolean {
