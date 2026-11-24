@@ -328,7 +328,7 @@ public final class RichInputConnection implements PrivateCommandPerformer {
      */
     public void replaceTextAtCursor(String textToReplace, CharSequence textToCommit, int newCursorPosition) {
         if (mComposingText.toString().equals(textToReplace)) {
-            commitText(textToReplace, newCursorPosition);
+            commitText(textToCommit, newCursorPosition);
             return;
         }
         // find length to delete before / after cursor, at start assume cursor is after the word
@@ -338,19 +338,29 @@ public final class RichInputConnection implements PrivateCommandPerformer {
         if (!TextUtils.equals(before, textToReplace)) { // not actually after the word
             CharSequence after = getTextAfterCursor(textToReplace.length(), 0);
             if (before == null || after == null) {
-                commitText(textToReplace, newCursorPosition);
+                commitText(textToCommit, newCursorPosition);
                 return;
             }
             String both = before.toString() + after;
             int startIndex = both.indexOf(textToReplace);
-            if (startIndex == -1) {
-                commitText(textToReplace, newCursorPosition);
+            // before may be shorter than textToReplace when the cursor is close to the start of the text
+            lengthBefore = before.length() - startIndex;
+            lengthAfter = textToReplace.length() - lengthBefore;
+            if (startIndex == -1 || lengthBefore < 0) { // not found, or found only after the cursor
+                commitText(textToCommit, newCursorPosition);
                 return;
             }
-            lengthBefore = textToReplace.length() - startIndex;
-            lengthAfter = startIndex;
         }
         beginBatchEdit(); // batch to avoid getting unwanted selection updates
+        // deleteSurroundingText does not touch the composing text, it deletes the text before / after it.
+        // So we need to finish composing first, otherwise we'd delete text before textToReplace.
+        mCommittedTextBeforeComposingText.append(mComposingText);
+        mComposingText.setLength(0);
+        mCommittedTextBeforeComposingText.setLength(Math.max(mCommittedTextBeforeComposingText.length() - lengthBefore, 0));
+        final int deletedBefore = Math.min(lengthBefore, mExpectedSelStart);
+        mExpectedSelStart -= deletedBefore;
+        mExpectedSelEnd -= deletedBefore;
+        mIC.finishComposingText();
         mIC.deleteSurroundingText(lengthBefore, lengthAfter);
         commitText(textToCommit, newCursorPosition);
         endBatchEdit();
